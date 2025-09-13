@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
@@ -7,6 +7,7 @@ import { Textarea } from './ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { PageType } from '../App';
+import { useAuth } from '../auth-context';
 
 interface StudentPortalProps {
   onNavigate: (page: PageType) => void;
@@ -17,6 +18,8 @@ export function StudentPortal({ onNavigate }: StudentPortalProps) {
   const [hasProfile, setHasProfile] = useState(false);
   const [currentTab, setCurrentTab] = useState('login');
   const [hasInternship, setHasInternship] = useState(false);
+  const [internships, setInternships] = useState<any[]>([]);
+  const { token, setToken } = useAuth();
 
   // Mock internship data
   const mockInternship = {
@@ -30,35 +33,105 @@ export function StudentPortal({ onNavigate }: StudentPortalProps) {
     status: 'allocated'
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // "API_CALL: Authentication endpoint - POST /api/auth/student/login"
-    setIsLoggedIn(true);
-    // Check if user has profile from API response
-    setHasProfile(false); // Initially false to show profile creation
-  };
-
-  const handleRegister = (e: React.FormEvent) => {
-    e.preventDefault();
-    // "API_CALL: Registration endpoint - POST /api/auth/student/register"
-    setIsLoggedIn(true);
-    setHasProfile(false);
-  };
-
-  const handleProfileCreation = (e: React.FormEvent) => {
-    e.preventDefault();
-    // "API_CALL: Profile creation endpoint - POST /api/student/profile"
-    setHasProfile(true);
-  };
-
-  const handleResumeUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // "API_CALL: Resume upload endpoint - POST /api/student/resume"
-      console.log('Uploading resume:', file.name);
-      // Auto-fill profile from resume data
+    const formData = new FormData(e.currentTarget);
+    try {
+      const res = await fetch('/api/students/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.get('email'),
+          password: formData.get('password'),
+        }),
+      });
+      if (!res.ok) throw new Error('Login failed');
+      const data = await res.json();
+      setToken(data.token);
+      setIsLoggedIn(true);
+      setHasProfile(Boolean(data.hasProfile));
+    } catch (err) {
+      console.error(err);
     }
   };
+
+  const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    try {
+      const res = await fetch('/api/students/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.get('name'),
+          email: formData.get('email'),
+          phone: formData.get('phone'),
+          password: formData.get('password'),
+        }),
+      });
+      if (!res.ok) throw new Error('Registration failed');
+      const data = await res.json();
+      setToken(data.token);
+      setIsLoggedIn(true);
+      setHasProfile(Boolean(data.hasProfile));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleProfileCreation = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    try {
+      const res = await fetch('/api/students/profile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(Object.fromEntries(formData.entries())),
+      });
+      if (!res.ok) throw new Error('Profile creation failed');
+      setHasProfile(true);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleResumeUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && token) {
+      const formData = new FormData();
+      formData.append('resume', file);
+      try {
+        await fetch('/api/students/resume', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        });
+      } catch (err) {
+        console.error('Resume upload failed', err);
+      }
+    }
+  };
+
+  useEffect(() => {
+    const fetchInternships = async () => {
+      try {
+        const res = await fetch('/api/internships', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!res.ok) throw new Error('Failed to load internships');
+        const data = await res.json();
+        setInternships(data);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    if (isLoggedIn && hasProfile) {
+      fetchInternships();
+    }
+  }, [isLoggedIn, hasProfile, token]);
 
   if (!isLoggedIn) {
     return (
@@ -118,20 +191,22 @@ export function StudentPortal({ onNavigate }: StudentPortalProps) {
                   <div className="space-y-4">
                     <div>
                       <Label htmlFor="email" className="text-gray-700">Email Address</Label>
-                      <Input 
-                        id="email" 
-                        type="email" 
-                        required 
+                      <Input
+                        id="email"
+                        name="email"
+                        type="email"
+                        required
                         className="mt-1 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                         placeholder="student@university.edu"
                       />
                     </div>
                     <div>
                       <Label htmlFor="password" className="text-gray-700">Password</Label>
-                      <Input 
-                        id="password" 
-                        type="password" 
-                        required 
+                      <Input
+                        id="password"
+                        name="password"
+                        type="password"
+                        required
                         className="mt-1 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                         placeholder="Enter your password"
                       />
@@ -151,39 +226,43 @@ export function StudentPortal({ onNavigate }: StudentPortalProps) {
                   <div className="space-y-4">
                     <div>
                       <Label htmlFor="name" className="text-gray-700">Full Name</Label>
-                      <Input 
-                        id="name" 
-                        required 
+                      <Input
+                        id="name"
+                        name="name"
+                        required
                         className="mt-1 border-gray-300 focus:border-purple-500 focus:ring-purple-500"
                         placeholder="John Doe"
                       />
                     </div>
                     <div>
                       <Label htmlFor="email" className="text-gray-700">Email Address</Label>
-                      <Input 
-                        id="email" 
-                        type="email" 
-                        required 
+                      <Input
+                        id="email"
+                        name="email"
+                        type="email"
+                        required
                         className="mt-1 border-gray-300 focus:border-purple-500 focus:ring-purple-500"
                         placeholder="student@university.edu"
                       />
                     </div>
                     <div>
                       <Label htmlFor="phone" className="text-gray-700">Phone Number</Label>
-                      <Input 
-                        id="phone" 
-                        type="tel" 
-                        required 
+                      <Input
+                        id="phone"
+                        name="phone"
+                        type="tel"
+                        required
                         className="mt-1 border-gray-300 focus:border-purple-500 focus:ring-purple-500"
                         placeholder="+91 98765 43210"
                       />
                     </div>
                     <div>
                       <Label htmlFor="password" className="text-gray-700">Password</Label>
-                      <Input 
-                        id="password" 
-                        type="password" 
-                        required 
+                      <Input
+                        id="password"
+                        name="password"
+                        type="password"
+                        required
                         className="mt-1 border-gray-300 focus:border-purple-500 focus:ring-purple-500"
                         placeholder="Create a strong password"
                       />
@@ -268,38 +347,38 @@ export function StudentPortal({ onNavigate }: StudentPortalProps) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="college">College/University</Label>
-                    <Input id="college" required />
+                    <Input id="college" name="college" required />
                   </div>
                   <div>
                     <Label htmlFor="course">Course/Degree</Label>
-                    <Input id="course" required />
+                    <Input id="course" name="course" required />
                   </div>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="year">Year of Study</Label>
-                    <Input id="year" required />
+                    <Input id="year" name="year" required />
                   </div>
                   <div>
                     <Label htmlFor="cgpa">CGPA/Percentage</Label>
-                    <Input id="cgpa" required />
+                    <Input id="cgpa" name="cgpa" required />
                   </div>
                 </div>
                 
                 <div>
                   <Label htmlFor="skills">Skills (comma separated)</Label>
-                  <Input id="skills" placeholder="e.g., Python, React, Java, Data Analysis" required />
+                  <Input id="skills" name="skills" placeholder="e.g., Python, React, Java, Data Analysis" required />
                 </div>
                 
                 <div>
                   <Label htmlFor="interests">Areas of Interest</Label>
-                  <Textarea id="interests" placeholder="Describe your areas of interest..." />
+                  <Textarea id="interests" name="interests" placeholder="Describe your areas of interest..." />
                 </div>
                 
                 <div>
                   <Label htmlFor="experience">Previous Experience (if any)</Label>
-                  <Textarea id="experience" placeholder="Describe any previous internships, projects, or work experience..." />
+                  <Textarea id="experience" name="experience" placeholder="Describe any previous internships, projects, or work experience..." />
                 </div>
                 
                 <Button type="submit" className="w-full">
@@ -342,52 +421,27 @@ export function StudentPortal({ onNavigate }: StudentPortalProps) {
                   <p className="text-gray-600">Browse and explore ongoing internship opportunities</p>
                 </CardHeader>
                 <CardContent>
-                  {/* Mock internship listings */}
                   <div className="space-y-4">
-                    <div className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-semibold">Software Development Intern</h3>
-                        <Badge variant="secondary">Open</Badge>
+                    {internships.map((internship) => (
+                      <div key={internship.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                        <div className="flex justify-between items-start mb-2">
+                          <h3 className="font-semibold">{internship.position || internship.title}</h3>
+                          <Badge variant="secondary">{internship.status || 'Open'}</Badge>
+                        </div>
+                        <p className="text-gray-600 mb-2">{internship.company}</p>
+                        <p className="text-sm text-gray-500 mb-3">
+                          Duration: {internship.duration} | Stipend: {internship.stipend}
+                        </p>
+                        {Array.isArray(internship.skills) && (
+                          <div className="flex gap-2 mb-3">
+                            {internship.skills.map((skill: string) => (
+                              <Badge key={skill} variant="outline">{skill}</Badge>
+                            ))}
+                          </div>
+                        )}
+                        <Button size="sm">View Details</Button>
                       </div>
-                      <p className="text-gray-600 mb-2">Tech Solutions India Pvt Ltd</p>
-                      <p className="text-sm text-gray-500 mb-3">Duration: 6 months | Stipend: ₹15,000/month</p>
-                      <div className="flex gap-2 mb-3">
-                        <Badge variant="outline">React</Badge>
-                        <Badge variant="outline">Node.js</Badge>
-                        <Badge variant="outline">MongoDB</Badge>
-                      </div>
-                      <Button size="sm">View Details</Button>
-                    </div>
-
-                    <div className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-semibold">Data Science Intern</h3>
-                        <Badge variant="secondary">Open</Badge>
-                      </div>
-                      <p className="text-gray-600 mb-2">Analytics Corp India</p>
-                      <p className="text-sm text-gray-500 mb-3">Duration: 4 months | Stipend: ₹12,000/month</p>
-                      <div className="flex gap-2 mb-3">
-                        <Badge variant="outline">Python</Badge>
-                        <Badge variant="outline">Machine Learning</Badge>
-                        <Badge variant="outline">SQL</Badge>
-                      </div>
-                      <Button size="sm">View Details</Button>
-                    </div>
-
-                    <div className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-semibold">Digital Marketing Intern</h3>
-                        <Badge variant="secondary">Open</Badge>
-                      </div>
-                      <p className="text-gray-600 mb-2">Creative Marketing Solutions</p>
-                      <p className="text-sm text-gray-500 mb-3">Duration: 3 months | Stipend: ₹10,000/month</p>
-                      <div className="flex gap-2 mb-3">
-                        <Badge variant="outline">SEO</Badge>
-                        <Badge variant="outline">Social Media</Badge>
-                        <Badge variant="outline">Content Writing</Badge>
-                      </div>
-                      <Button size="sm">View Details</Button>
-                    </div>
+                    ))}
                   </div>
                 </CardContent>
               </Card>
