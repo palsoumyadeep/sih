@@ -1,11 +1,19 @@
 import React, { useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
-import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
+import {
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+} from './ui/form';
 import { PageType } from '../App';
 
 interface StudentPortalProps {
@@ -17,6 +25,44 @@ export function StudentPortal({ onNavigate }: StudentPortalProps) {
   const [hasProfile, setHasProfile] = useState(false);
   const [currentTab, setCurrentTab] = useState('login');
   const [hasInternship, setHasInternship] = useState(false);
+
+  const loginForm = useForm<{ email: string; password: string }>({
+    mode: 'onChange',
+    defaultValues: { email: '', password: '' },
+  });
+
+  const registerForm = useForm<{
+    name: string;
+    email: string;
+    phone: string;
+    password: string;
+  }>({
+    mode: 'onChange',
+    defaultValues: { name: '', email: '', phone: '', password: '' },
+  });
+
+  const profileForm = useForm<{
+    resume: FileList | undefined;
+    college: string;
+    course: string;
+    year: string;
+    cgpa: string;
+    skills: string;
+    interests: string;
+    experience: string;
+  }>({
+    mode: 'onChange',
+    defaultValues: {
+      resume: undefined,
+      college: '',
+      course: '',
+      year: '',
+      cgpa: '',
+      skills: '',
+      interests: '',
+      experience: '',
+    },
+  });
 
   // Mock internship data
   const mockInternship = {
@@ -30,33 +76,107 @@ export function StudentPortal({ onNavigate }: StudentPortalProps) {
     status: 'allocated'
   };
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    // "API_CALL: Authentication endpoint - POST /api/auth/student/login"
-    setIsLoggedIn(true);
-    // Check if user has profile from API response
-    setHasProfile(false); // Initially false to show profile creation
+  const onLoginSubmit = async (data: { email: string; password: string }) => {
+    try {
+      const res = await fetch('/api/auth/student/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const err = await res
+          .json()
+          .catch(() => ({ field: 'email', message: 'Invalid credentials' }));
+        loginForm.setError(err.field as 'email' | 'password', {
+          type: 'server',
+          message: err.message,
+        });
+        return;
+      }
+      setIsLoggedIn(true);
+      setHasProfile(false);
+    } catch {
+      loginForm.setError('email', {
+        type: 'server',
+        message: 'Network error',
+      });
+    }
   };
 
-  const handleRegister = (e: React.FormEvent) => {
-    e.preventDefault();
-    // "API_CALL: Registration endpoint - POST /api/auth/student/register"
-    setIsLoggedIn(true);
-    setHasProfile(false);
+  const onRegisterSubmit = async (data: {
+    name: string;
+    email: string;
+    phone: string;
+    password: string;
+  }) => {
+    try {
+      const res = await fetch('/api/auth/student/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const err = await res
+          .json()
+          .catch(() => ({ field: 'email', message: 'Registration failed' }));
+        registerForm.setError(err.field as keyof typeof data, {
+          type: 'server',
+          message: err.message,
+        });
+        return;
+      }
+      setIsLoggedIn(true);
+      setHasProfile(false);
+    } catch {
+      registerForm.setError('email', {
+        type: 'server',
+        message: 'Network error',
+      });
+    }
   };
 
-  const handleProfileCreation = (e: React.FormEvent) => {
-    e.preventDefault();
-    // "API_CALL: Profile creation endpoint - POST /api/student/profile"
-    setHasProfile(true);
-  };
-
-  const handleResumeUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // "API_CALL: Resume upload endpoint - POST /api/student/resume"
-      console.log('Uploading resume:', file.name);
-      // Auto-fill profile from resume data
+  const onProfileSubmit = async (data: {
+    resume: FileList | undefined;
+    college: string;
+    course: string;
+    year: string;
+    cgpa: string;
+    skills: string;
+    interests: string;
+    experience: string;
+  }) => {
+    try {
+      const formData = new FormData();
+      if (data.resume?.[0]) {
+        formData.append('resume', data.resume[0]);
+      }
+      formData.append('college', data.college);
+      formData.append('course', data.course);
+      formData.append('year', data.year);
+      formData.append('cgpa', data.cgpa);
+      formData.append('skills', data.skills);
+      formData.append('interests', data.interests);
+      formData.append('experience', data.experience);
+      const res = await fetch('/api/student/profile', {
+        method: 'POST',
+        body: formData,
+      });
+      if (!res.ok) {
+        const err = await res
+          .json()
+          .catch(() => ({ field: 'college', message: 'Profile creation failed' }));
+        profileForm.setError(err.field as keyof typeof data, {
+          type: 'server',
+          message: err.message,
+        });
+        return;
+      }
+      setHasProfile(true);
+    } catch {
+      profileForm.setError('college', {
+        type: 'server',
+        message: 'Network error',
+      });
     }
   };
 
@@ -114,88 +234,228 @@ export function StudentPortal({ onNavigate }: StudentPortalProps) {
               </TabsList>
               
               <TabsContent value="login">
-                <form onSubmit={handleLogin} className="space-y-6">
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="email" className="text-gray-700">Email Address</Label>
-                      <Input 
-                        id="email" 
-                        type="email" 
-                        required 
-                        className="mt-1 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                        placeholder="student@university.edu"
+                <Form {...loginForm}>
+                  <form
+                    onSubmit={loginForm.handleSubmit(onLoginSubmit)}
+                    className="space-y-6"
+                  >
+                    <div className="space-y-4">
+                      <FormField
+                        control={loginForm.control}
+                        name="email"
+                        rules={{
+                          required: 'Email is required',
+                          pattern: {
+                            value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                            message: 'Invalid email address',
+                          },
+                        }}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-gray-700">
+                              Email Address
+                            </FormLabel>
+                            <FormControl>
+                              <Input
+                                type="email"
+                                placeholder="student@university.edu"
+                                className="mt-1 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={loginForm.control}
+                        name="password"
+                        rules={{
+                          required: 'Password is required',
+                          minLength: {
+                            value: 8,
+                            message: 'At least 8 characters',
+                          },
+                          validate: (v) =>
+                            /(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(v) ||
+                            'Must include upper, lower, number',
+                        }}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-gray-700">
+                              Password
+                            </FormLabel>
+                            <FormControl>
+                              <Input
+                                type="password"
+                                placeholder="Enter your password"
+                                className="mt-1 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
                       />
                     </div>
-                    <div>
-                      <Label htmlFor="password" className="text-gray-700">Password</Label>
-                      <Input 
-                        id="password" 
-                        type="password" 
-                        required 
-                        className="mt-1 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                        placeholder="Enter your password"
-                      />
-                    </div>
-                  </div>
-                  <Button type="submit" className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white py-3 transition-all duration-300 transform hover:scale-105">
-                    🚀 Login to Dashboard
-                  </Button>
-                  <p className="text-center text-sm text-gray-600">
-                    Don't have an account? <button type="button" onClick={() => setCurrentTab('register')} className="text-blue-600 hover:underline font-medium">Register here</button>
-                  </p>
-                </form>
+                    <Button
+                      type="submit"
+                      disabled={
+                        !loginForm.formState.isValid ||
+                        loginForm.formState.isSubmitting
+                      }
+                      className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white py-3 transition-all duration-300 transform hover:scale-105 disabled:opacity-50"
+                    >
+                      🚀 Login to Dashboard
+                    </Button>
+                    <p className="text-center text-sm text-gray-600">
+                      Don't have an account?{' '}
+                      <button
+                        type="button"
+                        onClick={() => setCurrentTab('register')}
+                        className="text-blue-600 hover:underline font-medium"
+                      >
+                        Register here
+                      </button>
+                    </p>
+                  </form>
+                </Form>
               </TabsContent>
-              
+
               <TabsContent value="register">
-                <form onSubmit={handleRegister} className="space-y-6">
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="name" className="text-gray-700">Full Name</Label>
-                      <Input 
-                        id="name" 
-                        required 
-                        className="mt-1 border-gray-300 focus:border-purple-500 focus:ring-purple-500"
-                        placeholder="John Doe"
+                <Form {...registerForm}>
+                  <form
+                    onSubmit={registerForm.handleSubmit(onRegisterSubmit)}
+                    className="space-y-6"
+                  >
+                    <div className="space-y-4">
+                      <FormField
+                        control={registerForm.control}
+                        name="name"
+                        rules={{ required: 'Name is required' }}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-gray-700">
+                              Full Name
+                            </FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="John Doe"
+                                className="mt-1 border-gray-300 focus:border-purple-500 focus:ring-purple-500"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={registerForm.control}
+                        name="email"
+                        rules={{
+                          required: 'Email is required',
+                          pattern: {
+                            value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                            message: 'Invalid email address',
+                          },
+                        }}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-gray-700">
+                              Email Address
+                            </FormLabel>
+                            <FormControl>
+                              <Input
+                                type="email"
+                                placeholder="student@university.edu"
+                                className="mt-1 border-gray-300 focus:border-purple-500 focus:ring-purple-500"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={registerForm.control}
+                        name="phone"
+                        rules={{
+                          required: 'Phone number is required',
+                          pattern: {
+                            value: /^\+?\d{10,14}$/,
+                            message: 'Invalid phone number',
+                          },
+                        }}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-gray-700">
+                              Phone Number
+                            </FormLabel>
+                            <FormControl>
+                              <Input
+                                type="tel"
+                                placeholder="+91 98765 43210"
+                                className="mt-1 border-gray-300 focus:border-purple-500 focus:ring-purple-500"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={registerForm.control}
+                        name="password"
+                        rules={{
+                          required: 'Password is required',
+                          minLength: {
+                            value: 8,
+                            message: 'At least 8 characters',
+                          },
+                          validate: (v) =>
+                            /(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(v) ||
+                            'Must include upper, lower, number',
+                        }}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-gray-700">
+                              Password
+                            </FormLabel>
+                            <FormControl>
+                              <Input
+                                type="password"
+                                placeholder="Create a strong password"
+                                className="mt-1 border-gray-300 focus:border-purple-500 focus:ring-purple-500"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
                       />
                     </div>
-                    <div>
-                      <Label htmlFor="email" className="text-gray-700">Email Address</Label>
-                      <Input 
-                        id="email" 
-                        type="email" 
-                        required 
-                        className="mt-1 border-gray-300 focus:border-purple-500 focus:ring-purple-500"
-                        placeholder="student@university.edu"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="phone" className="text-gray-700">Phone Number</Label>
-                      <Input 
-                        id="phone" 
-                        type="tel" 
-                        required 
-                        className="mt-1 border-gray-300 focus:border-purple-500 focus:ring-purple-500"
-                        placeholder="+91 98765 43210"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="password" className="text-gray-700">Password</Label>
-                      <Input 
-                        id="password" 
-                        type="password" 
-                        required 
-                        className="mt-1 border-gray-300 focus:border-purple-500 focus:ring-purple-500"
-                        placeholder="Create a strong password"
-                      />
-                    </div>
-                  </div>
-                  <Button type="submit" className="w-full bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white py-3 transition-all duration-300 transform hover:scale-105">
-                    🎉 Create Account
-                  </Button>
-                  <p className="text-center text-sm text-gray-600">
-                    Already have an account? <button type="button" onClick={() => setCurrentTab('login')} className="text-purple-600 hover:underline font-medium">Login here</button>
-                  </p>
-                </form>
+                    <Button
+                      type="submit"
+                      disabled={
+                        !registerForm.formState.isValid ||
+                        registerForm.formState.isSubmitting
+                      }
+                      className="w-full bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white py-3 transition-all duration-300 transform hover:scale-105 disabled:opacity-50"
+                    >
+                      🎉 Create Account
+                    </Button>
+                    <p className="text-center text-sm text-gray-600">
+                      Already have an account?{' '}
+                      <button
+                        type="button"
+                        onClick={() => setCurrentTab('login')}
+                        className="text-purple-600 hover:underline font-medium"
+                      >
+                        Login here
+                      </button>
+                    </p>
+                  </form>
+                </Form>
               </TabsContent>
             </Tabs>
           </CardContent>
@@ -250,62 +510,188 @@ export function StudentPortal({ onNavigate }: StudentPortalProps) {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="mb-6">
-                <Label htmlFor="resume">Upload Resume (Optional)</Label>
-                <Input
-                  id="resume"
-                  type="file"
-                  accept=".pdf,.doc,.docx"
-                  onChange={handleResumeUpload}
-                  className="mt-2"
-                />
-                <p className="text-sm text-gray-500 mt-1">
-                  Upload your resume to auto-fill the form below
-                </p>
-              </div>
-              
-              <form onSubmit={handleProfileCreation} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="college">College/University</Label>
-                    <Input id="college" required />
+              <Form {...profileForm}>
+                <div className="mb-6">
+                  <FormField
+                    control={profileForm.control}
+                    name="resume"
+                    rules={{
+                      validate: {
+                        fileSize: (files) =>
+                          !files?.[0] ||
+                          files[0].size <= 5 * 1024 * 1024 ||
+                          'File must be 5MB or less',
+                        fileType: (files) =>
+                          !files?.[0] ||
+                          ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'].includes(
+                            files[0].type,
+                          ) ||
+                          'Invalid file type',
+                      },
+                    }}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Upload Resume (Optional)</FormLabel>
+                        <FormControl>
+                          <Input
+                            id="resume"
+                            type="file"
+                            accept=".pdf,.doc,.docx"
+                            onChange={(e) => {
+                              const files = e.target.files;
+                              field.onChange(files);
+                              if (files?.[0]) {
+                                console.log('Uploading resume:', files[0].name);
+                              }
+                            }}
+                            className="mt-2"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                        <p className="text-sm text-gray-500 mt-1">
+                          Upload your resume to auto-fill the form below
+                        </p>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <form
+                  onSubmit={profileForm.handleSubmit(onProfileSubmit)}
+                  className="space-y-6"
+                >
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={profileForm.control}
+                      name="college"
+                      rules={{ required: 'College is required' }}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>College/University</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={profileForm.control}
+                      name="course"
+                      rules={{ required: 'Course is required' }}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Course/Degree</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
-                  <div>
-                    <Label htmlFor="course">Course/Degree</Label>
-                    <Input id="course" required />
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={profileForm.control}
+                      name="year"
+                      rules={{ required: 'Year is required' }}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Year of Study</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={profileForm.control}
+                      name="cgpa"
+                      rules={{ required: 'CGPA is required' }}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>CGPA/Percentage</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
                   <div>
-                    <Label htmlFor="year">Year of Study</Label>
-                    <Input id="year" required />
+                    <FormField
+                      control={profileForm.control}
+                      name="skills"
+                      rules={{ required: 'Skills are required' }}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Skills (comma separated)</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="e.g., Python, React, Java, Data Analysis"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
+
                   <div>
-                    <Label htmlFor="cgpa">CGPA/Percentage</Label>
-                    <Input id="cgpa" required />
+                    <FormField
+                      control={profileForm.control}
+                      name="interests"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Areas of Interest</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="Describe your areas of interest..."
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
-                </div>
-                
-                <div>
-                  <Label htmlFor="skills">Skills (comma separated)</Label>
-                  <Input id="skills" placeholder="e.g., Python, React, Java, Data Analysis" required />
-                </div>
-                
-                <div>
-                  <Label htmlFor="interests">Areas of Interest</Label>
-                  <Textarea id="interests" placeholder="Describe your areas of interest..." />
-                </div>
-                
-                <div>
-                  <Label htmlFor="experience">Previous Experience (if any)</Label>
-                  <Textarea id="experience" placeholder="Describe any previous internships, projects, or work experience..." />
-                </div>
-                
-                <Button type="submit" className="w-full">
-                  Create Profile
-                </Button>
-              </form>
+
+                  <div>
+                    <FormField
+                      control={profileForm.control}
+                      name="experience"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Previous Experience (if any)</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="Describe any previous internships, projects, or work experience..."
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <Button
+                    type="submit"
+                    disabled={
+                      !profileForm.formState.isValid ||
+                      profileForm.formState.isSubmitting
+                    }
+                    className="w-full"
+                  >
+                    Create Profile
+                  </Button>
+                </form>
+              </Form>
             </CardContent>
           </Card>
         </div>
