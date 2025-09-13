@@ -1,9 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from './ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Card, CardContent, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
-import { Textarea } from './ui/textarea';
 import { Label } from './ui/label';
 
 interface ChatbotProps {
@@ -40,69 +39,56 @@ export function Chatbot({ onClose }: ChatbotProps) {
     scrollToBottom();
   }, [messages]);
 
-  const getBotResponse = (userMessage: string): string => {
-    const lowerMessage = userMessage.toLowerCase();
-    
-    if (lowerMessage.includes('eligibility') || lowerMessage.includes('eligible')) {
-      return "To be eligible for PM Internship Scheme:\n• Must be a student currently enrolled in a recognized institution\n• Should be in 2nd year or above\n• Minimum CGPA of 6.0 or 60%\n• Age between 18-25 years\n• Indian citizen";
-    }
-    
-    if (lowerMessage.includes('stipend') || lowerMessage.includes('salary') || lowerMessage.includes('payment')) {
-      return "Stipend details:\n• Varies by company and role (₹8,000 - ₹25,000/month)\n• Government provides additional allowance of ₹5,000/month\n• Certificate and performance bonus on completion\n• Some companies offer full-time job opportunities";
-    }
-    
-    if (lowerMessage.includes('duration') || lowerMessage.includes('how long')) {
-      return "Internship duration:\n• Minimum: 2 months\n• Maximum: 12 months\n• Most common: 3-6 months\n• Extension possible based on performance\n• Part-time and full-time options available";
-    }
-    
-    if (lowerMessage.includes('application') || lowerMessage.includes('apply') || lowerMessage.includes('process')) {
-      return "Application process:\n1. Register on the portal\n2. Complete your profile\n3. Upload resume (optional)\n4. Browse available internships\n5. Smart allocation system will match you\n6. Manual application also available\n7. Interview with selected companies";
-    }
-    
-    if (lowerMessage.includes('documents') || lowerMessage.includes('required')) {
-      return "Required documents:\n• College ID card\n• Academic transcripts\n• Resume/CV\n• Aadhaar card\n• Bank account details\n• Passport size photograph\n• Bonafide certificate from college";
-    }
-    
-    if (lowerMessage.includes('resume') || lowerMessage.includes('cv')) {
-      setShowResumeUpload(true);
-      return "I can help you score your resume and provide improvement suggestions! Please upload your resume using the form below, and I'll analyze it for you.";
-    }
-    
-    if (lowerMessage.includes('smart allocation') || lowerMessage.includes('matching')) {
-      return "Smart Allocation System:\n• AI analyzes your profile, skills, and preferences\n• Matches with suitable company requirements\n• Considers location preferences\n• Factors in academic background\n• Success rate: 87%\n• Results typically within 48 hours";
-    }
-    
-    if (lowerMessage.includes('contact') || lowerMessage.includes('support') || lowerMessage.includes('help')) {
-      return "Contact support:\n• Email: support@pminternship.gov.in\n• Phone: 1800-123-4567 (Toll-free)\n• WhatsApp: +91-98765-43210\n• Office hours: 9 AM - 6 PM (Mon-Fri)\n• Live chat: Available 24/7";
-    }
-    
-    return "I understand you're asking about the PM Internship Scheme. I can help with:\n• Eligibility criteria\n• Application process\n• Stipend details\n• Required documents\n• Resume scoring\n• Smart allocation system\n\nPlease ask me about any of these topics!";
-  };
-
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
 
+    const lowerInput = input.toLowerCase();
+    if (lowerInput.includes('resume') || lowerInput.includes('cv')) {
+      setShowResumeUpload(true);
+    }
+
+    const userMessageId = messages.length + 1;
+    const placeholderId = userMessageId + 1;
+
     const userMessage: Message = {
-      id: messages.length + 1,
+      id: userMessageId,
       text: input,
       isBot: false,
       timestamp: new Date()
     };
 
-    setMessages(prev => [...prev, userMessage]);
-    
-    // "API_CALL: Chatbot message endpoint - POST /api/chatbot/message"
-    
-    setTimeout(() => {
-      const botResponse: Message = {
-        id: messages.length + 2,
-        text: getBotResponse(input),
-        isBot: true,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, botResponse]);
-    }, 1000);
+    const loadingMessage: Message = {
+      id: placeholderId,
+      text: '...',
+      isBot: true,
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, userMessage, loadingMessage]);
+
+    try {
+      const response = await fetch('/api/chatbot/faq', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: input })
+      });
+      if (!response.ok) throw new Error('Network response was not ok');
+      const data = await response.json();
+      setMessages(prev =>
+        prev.map(m =>
+          m.id === placeholderId ? { ...m, text: data.answer } : m
+        )
+      );
+    } catch (error) {
+      setMessages(prev =>
+        prev.map(m =>
+          m.id === placeholderId
+            ? { ...m, text: 'Sorry, something went wrong.' }
+            : m
+        )
+      );
+    }
 
     setInput('');
   };
