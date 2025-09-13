@@ -30,12 +30,27 @@ export function StudentPortal({ onNavigate }: StudentPortalProps) {
     status: 'allocated'
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // "API_CALL: Authentication endpoint - POST /api/auth/student/login"
-    setIsLoggedIn(true);
-    // Check if user has profile from API response
-    setHasProfile(false); // Initially false to show profile creation
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get('email') as string;
+    const password = formData.get('password') as string;
+
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: email, password })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      localStorage.setItem('token', data.token);
+      setIsLoggedIn(true);
+      const profileRes = await fetch('/api/profile', {
+        headers: { Authorization: `Bearer ${data.token}` }
+      });
+      setHasProfile(profileRes.ok);
+    }
   };
 
   const handleRegister = (e: React.FormEvent) => {
@@ -118,25 +133,27 @@ export function StudentPortal({ onNavigate }: StudentPortalProps) {
                   <div className="space-y-4">
                     <div>
                       <Label htmlFor="email" className="text-gray-700">Email Address</Label>
-                      <Input 
-                        id="email" 
-                        type="email" 
-                        required 
+                      <Input
+                        id="email"
+                        name="email"
+                        type="email"
+                        required
                         className="mt-1 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                         placeholder="student@university.edu"
                       />
                     </div>
                     <div>
                       <Label htmlFor="password" className="text-gray-700">Password</Label>
-                      <Input 
-                        id="password" 
-                        type="password" 
-                        required 
+                      <Input
+                        id="password"
+                        name="password"
+                        type="password"
+                        required
                         className="mt-1 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                         placeholder="Enter your password"
                       />
-                    </div>
                   </div>
+                </div>
                   <Button type="submit" className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white py-3 transition-all duration-300 transform hover:scale-105">
                     🚀 Login to Dashboard
                   </Button>
