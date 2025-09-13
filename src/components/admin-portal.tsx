@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
@@ -16,6 +16,18 @@ interface AdminPortalProps {
 export function AdminPortal({ onNavigate }: AdminPortalProps) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAllocating, setIsAllocating] = useState(false);
+  const [overview, setOverview] = useState<{
+    totalStudents: number;
+    companies: number;
+    activeInternships: number;
+    placements: number;
+  } | null>(null);
+  const [allocationProgress, setAllocationProgress] = useState(0);
+  const [allocationResult, setAllocationResult] = useState<{
+    processed: number;
+    allocated: number;
+    message: string;
+  } | null>(null);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,15 +35,35 @@ export function AdminPortal({ onNavigate }: AdminPortalProps) {
     setIsLoggedIn(true);
   };
 
-  const handleSmartAllocation = () => {
+  useEffect(() => {
+    if (isLoggedIn) {
+      fetch('/api/admin/overview')
+        .then((res) => res.json())
+        .then((data) => setOverview(data))
+        .catch(() => {});
+    }
+  }, [isLoggedIn]);
+
+  const handleSmartAllocation = async () => {
     setIsAllocating(true);
-    // "API_CALL: Smart allocation endpoint - POST /api/admin/smart-allocation"
-    
-    // Simulate allocation process
-    setTimeout(() => {
+    setAllocationProgress(0);
+    setAllocationResult(null);
+
+    const interval = setInterval(() => {
+      setAllocationProgress((prev) => Math.min(prev + 10, 90));
+    }, 500);
+
+    try {
+      const res = await fetch('/api/admin/run-allocation', { method: 'POST' });
+      const data = await res.json();
+      clearInterval(interval);
+      setAllocationProgress(100);
+      setAllocationResult(data);
+    } catch (error) {
+      clearInterval(interval);
       setIsAllocating(false);
-      alert('Smart allocation completed successfully! 45 students have been allocated internships.');
-    }, 8000);
+      alert('Smart allocation failed');
+    }
   };
 
   // Mock data for charts
@@ -59,6 +91,14 @@ export function AdminPortal({ onNavigate }: AdminPortalProps) {
     { month: 'May', students: 420, companies: 35 },
     { month: 'Jun', students: 380, companies: 32 }
   ];
+
+  const stats =
+    overview || {
+      totalStudents: 0,
+      companies: 0,
+      activeInternships: 0,
+      placements: 0,
+    };
 
   if (!isLoggedIn) {
     return (
@@ -175,13 +215,31 @@ export function AdminPortal({ onNavigate }: AdminPortalProps) {
   }
 
   if (isAllocating) {
+    if (allocationResult) {
+      return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+          <Card className="w-full max-w-md">
+            <CardContent className="p-8 text-center">
+              <div className="text-4xl mb-4">✅</div>
+              <h3 className="text-xl font-semibold mb-2">Smart Allocation Complete</h3>
+              <p className="text-gray-600 mb-4">{allocationResult.message}</p>
+              <div className="space-y-1 text-sm text-gray-600 mb-6">
+                <p>Students Processed: {allocationResult.processed}</p>
+                <p>Students Allocated: {allocationResult.allocated}</p>
+              </div>
+              <Button onClick={() => setIsAllocating(false)}>Return to Dashboard</Button>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardContent className="p-8 text-center">
             <div className="w-24 h-24 mx-auto mb-6">
-              <img 
-                src="https://i.gifer.com/ZKZg.gif" 
+              <img
+                src="https://i.gifer.com/ZKZg.gif"
                 alt="Allocating..."
                 className="w-full h-full object-contain"
                 onError={(e) => {
@@ -197,8 +255,8 @@ export function AdminPortal({ onNavigate }: AdminPortalProps) {
             <p className="text-gray-600 mb-6">
               Our AI engine is analyzing student profiles and matching them with suitable internships.
             </p>
-            <Progress value={75} className="mb-4" />
-            <p className="text-sm text-gray-500">Processing 245 student profiles...</p>
+            <Progress value={allocationProgress} className="mb-4" />
+            <p className="text-sm text-gray-500">Processing student profiles...</p>
           </CardContent>
         </Card>
       </div>
@@ -236,7 +294,7 @@ export function AdminPortal({ onNavigate }: AdminPortalProps) {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600">Total Students</p>
-                      <p className="text-3xl font-bold">1,247</p>
+                      <p className="text-3xl font-bold">{stats.totalStudents}</p>
                       <p className="text-sm text-green-600">↑ 12% from last month</p>
                     </div>
                     <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
@@ -251,7 +309,7 @@ export function AdminPortal({ onNavigate }: AdminPortalProps) {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600">Registered Companies</p>
-                      <p className="text-3xl font-bold">156</p>
+                      <p className="text-3xl font-bold">{stats.companies}</p>
                       <p className="text-sm text-green-600">↑ 8% from last month</p>
                     </div>
                     <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
@@ -266,7 +324,7 @@ export function AdminPortal({ onNavigate }: AdminPortalProps) {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600">Active Internships</p>
-                      <p className="text-3xl font-bold">89</p>
+                      <p className="text-3xl font-bold">{stats.activeInternships}</p>
                       <p className="text-sm text-green-600">↑ 15% from last month</p>
                     </div>
                     <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
@@ -281,7 +339,7 @@ export function AdminPortal({ onNavigate }: AdminPortalProps) {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600">Successful Placements</p>
-                      <p className="text-3xl font-bold">423</p>
+                      <p className="text-3xl font-bold">{stats.placements}</p>
                       <p className="text-sm text-green-600">↑ 22% from last month</p>
                     </div>
                     <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
