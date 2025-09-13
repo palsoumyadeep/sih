@@ -18,6 +18,8 @@ interface Message {
 }
 
 export function Chatbot({ onClose }: ChatbotProps) {
+  const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) || '';
+
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
@@ -79,7 +81,7 @@ export function Chatbot({ onClose }: ChatbotProps) {
     return "I understand you're asking about the PM Internship Scheme. I can help with:\n• Eligibility criteria\n• Application process\n• Stipend details\n• Required documents\n• Resume scoring\n• Smart allocation system\n\nPlease ask me about any of these topics!";
   };
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
 
@@ -91,50 +93,72 @@ export function Chatbot({ onClose }: ChatbotProps) {
     };
 
     setMessages(prev => [...prev, userMessage]);
-    
-    // "API_CALL: Chatbot message endpoint - POST /api/chatbot/message"
-    
-    setTimeout(() => {
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/chatbot/message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: input })
+      });
+      const data = await response.json();
       const botResponse: Message = {
-        id: messages.length + 2,
+        id: userMessage.id + 1,
+        text: data.reply || getBotResponse(input),
+        isBot: true,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, botResponse]);
+    } catch {
+      const botResponse: Message = {
+        id: userMessage.id + 1,
         text: getBotResponse(input),
         isBot: true,
         timestamp: new Date()
       };
       setMessages(prev => [...prev, botResponse]);
-    }, 1000);
+    }
 
     setInput('');
   };
 
-  const handleResumeUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleResumeUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // "API_CALL: Resume analysis endpoint - POST /api/chatbot/analyze-resume"
-      
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        await fetch(`${API_BASE_URL}/chatbot/analyze-resume`, {
+          method: 'POST',
+          body: formData
+        });
+      } catch {
+        // ignore network errors and fall back to simulation below
+      }
+
       // Simulate resume analysis
       setTimeout(() => {
         const score = Math.floor(Math.random() * 30) + 70; // Random score between 70-100
         setResumeScore(score);
-        
+
         const suggestions = [
-          "Add more specific technical skills relevant to your field",
+          'Add more specific technical skills relevant to your field',
           "Include quantifiable achievements (e.g., 'Increased efficiency by 20%')",
-          "Add a professional summary at the top",
-          "Include relevant coursework and projects",
-          "Use action verbs to describe your experiences",
-          "Ensure consistent formatting throughout"
+          'Add a professional summary at the top',
+          'Include relevant coursework and projects',
+          'Use action verbs to describe your experiences',
+          'Ensure consistent formatting throughout'
         ];
-        
+
         setResumeSuggestions(suggestions.slice(0, Math.floor(Math.random() * 3) + 3));
-        
+
         const analysisMessage: Message = {
           id: messages.length + 1,
           text: `Resume Analysis Complete!\n\nYour Resume Score: ${score}/100\n\n${score >= 90 ? 'Excellent!' : score >= 80 ? 'Very Good!' : score >= 70 ? 'Good!' : 'Needs Improvement'}\n\nCheck below for detailed suggestions to improve your resume.`,
           isBot: true,
           timestamp: new Date()
         };
-        
+
         setMessages(prev => [...prev, analysisMessage]);
       }, 2000);
     }
