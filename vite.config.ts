@@ -1,10 +1,52 @@
 
-  import { defineConfig } from 'vite';
-  import react from '@vitejs/plugin-react-swc';
-  import path from 'path';
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react-swc';
+import path from 'path';
+import fs from 'fs';
 
-  export default defineConfig({
-    plugins: [react()],
+// Simple FAQ API for development - reads canned responses from a JSON file
+function faqApiPlugin() {
+  return {
+    name: 'faq-api-plugin',
+    configureServer(server) {
+      server.middlewares.use('/api/chatbot/faq', (req, res) => {
+        if (req.method !== 'POST') {
+          res.statusCode = 405;
+          res.end('Method Not Allowed');
+          return;
+        }
+
+        let body = '';
+        req.on('data', (chunk) => {
+          body += chunk;
+        });
+        req.on('end', () => {
+          try {
+            const { question } = JSON.parse(body || '{}');
+            const faqPath = path.resolve(__dirname, 'src/data/faq.json');
+            const faqs = JSON.parse(fs.readFileSync(faqPath, 'utf-8'));
+            const lower = (question || '').toLowerCase();
+            const match = faqs.find((item: any) =>
+              item.keywords.some((kw: string) => lower.includes(kw))
+            );
+            const answer = match
+              ? match.answer
+              : "I don't have an answer for that yet.";
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ answer }));
+          } catch (err) {
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ answer: 'Error processing request.' }));
+          }
+        });
+      });
+    },
+  };
+}
+
+export default defineConfig({
+  plugins: [react(), faqApiPlugin()],
     resolve: {
       extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
       alias: {
