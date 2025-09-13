@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAuth } from '../auth/AuthProvider';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
@@ -13,7 +14,8 @@ interface StudentPortalProps {
 }
 
 export function StudentPortal({ onNavigate }: StudentPortalProps) {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const { role, login, authFetch } = useAuth();
+  const isLoggedIn = role === 'student';
   const [hasProfile, setHasProfile] = useState(false);
   const [currentTab, setCurrentTab] = useState('login');
   const [hasInternship, setHasInternship] = useState(false);
@@ -30,24 +32,28 @@ export function StudentPortal({ onNavigate }: StudentPortalProps) {
     status: 'allocated'
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // "API_CALL: Authentication endpoint - POST /api/auth/student/login"
-    setIsLoggedIn(true);
-    // Check if user has profile from API response
-    setHasProfile(false); // Initially false to show profile creation
+    const res = await fetch('/api/auth/student/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'student', password: 'student123' })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      login(data.token);
+      setHasProfile(false);
+    }
   };
 
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
-    // "API_CALL: Registration endpoint - POST /api/auth/student/register"
-    setIsLoggedIn(true);
     setHasProfile(false);
   };
 
-  const handleProfileCreation = (e: React.FormEvent) => {
+  const handleProfileCreation = async (e: React.FormEvent) => {
     e.preventDefault();
-    // "API_CALL: Profile creation endpoint - POST /api/student/profile"
+    await authFetch('/api/student/profile', { method: 'POST' });
     setHasProfile(true);
   };
 
