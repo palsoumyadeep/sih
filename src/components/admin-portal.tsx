@@ -14,13 +14,54 @@ interface AdminPortalProps {
 }
 
 export function AdminPortal({ onNavigate }: AdminPortalProps) {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [token, setToken] = useState<string | null>(localStorage.getItem('adminToken'));
+  const [isLoggedIn, setIsLoggedIn] = useState(!!token);
   const [isAllocating, setIsAllocating] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // "API_CALL: Admin authentication endpoint - POST /api/auth/admin/login"
-    setIsLoggedIn(true);
+    const formData = new FormData(e.currentTarget);
+    const res = await fetch('/api/auth/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.fromEntries(formData)),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      localStorage.setItem('adminToken', data.token);
+      setToken(data.token);
+      setIsLoggedIn(true);
+    }
+  };
+
+  const handleCreateInternship = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!token) return;
+    const formData = new FormData(e.currentTarget);
+    await fetch('/api/internships', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(Object.fromEntries(formData)),
+    });
+    e.currentTarget.reset();
+  };
+
+  const handleAssignInternship = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!token) return;
+    const formData = new FormData(e.currentTarget);
+    await fetch('/api/internships/assign', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(Object.fromEntries(formData)),
+    });
+    e.currentTarget.reset();
   };
 
   const handleSmartAllocation = () => {
@@ -221,12 +262,13 @@ export function AdminPortal({ onNavigate }: AdminPortalProps) {
 
       <div className="container mx-auto p-4">
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="students">Students</TabsTrigger>
-            <TabsTrigger value="companies">Companies</TabsTrigger>
-            <TabsTrigger value="allocation">Smart Allocation</TabsTrigger>
-          </TabsList>
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="students">Students</TabsTrigger>
+          <TabsTrigger value="companies">Companies</TabsTrigger>
+          <TabsTrigger value="internships">Internships</TabsTrigger>
+          <TabsTrigger value="allocation">Smart Allocation</TabsTrigger>
+        </TabsList>
 
           <TabsContent value="overview" className="mt-6">
             {/* Stats Cards */}
@@ -493,9 +535,69 @@ export function AdminPortal({ onNavigate }: AdminPortalProps) {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
+            </TabsContent>
 
-          <TabsContent value="allocation" className="mt-6">
+            <TabsContent value="internships" className="mt-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Create Internship</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <form onSubmit={handleCreateInternship} className="space-y-4">
+                      <div>
+                        <Label htmlFor="title">Title</Label>
+                        <Input id="title" name="title" required />
+                      </div>
+                      <div>
+                        <Label htmlFor="company">Company</Label>
+                        <Input id="company" name="company" required />
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="duration">Duration</Label>
+                          <Input id="duration" name="duration" required />
+                        </div>
+                        <div>
+                          <Label htmlFor="stipend">Stipend</Label>
+                          <Input id="stipend" name="stipend" required />
+                        </div>
+                      </div>
+                      <div>
+                        <Label htmlFor="location">Location</Label>
+                        <Input id="location" name="location" required />
+                      </div>
+                      <div>
+                        <Label htmlFor="skills">Skills (comma separated)</Label>
+                        <Input id="skills" name="skills" />
+                      </div>
+                      <Button type="submit">Create Internship</Button>
+                    </form>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Assign Internship</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <form onSubmit={handleAssignInternship} className="space-y-4">
+                      <div>
+                        <Label htmlFor="studentId">Student Email/ID</Label>
+                        <Input id="studentId" name="studentId" required />
+                      </div>
+                      <div>
+                        <Label htmlFor="internshipId">Internship ID</Label>
+                        <Input id="internshipId" name="internshipId" required />
+                      </div>
+                      <Button type="submit">Assign</Button>
+                    </form>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="allocation" className="mt-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
               <Card>
                 <CardHeader>
