@@ -1,0 +1,24 @@
+CREATE TABLE IF NOT EXISTS students (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  email TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  name TEXT,
+  major TEXT
+);
+
+CREATE TABLE IF NOT EXISTS admins (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  email TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  name TEXT
+);
+
+CREATE TABLE IF NOT EXISTS internships (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  student_id INTEGER NOT NULL,
+  company TEXT NOT NULL,
+  position TEXT NOT NULL,
+  start_date TEXT,
+  end_date TEXT,
+  FOREIGN KEY (student_id) REFERENCES students(id)
+);
