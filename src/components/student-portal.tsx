@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
@@ -13,42 +13,95 @@ interface StudentPortalProps {
 }
 
 export function StudentPortal({ onNavigate }: StudentPortalProps) {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [token, setToken] = useState<string | null>(localStorage.getItem('studentToken'));
+  const [isLoggedIn, setIsLoggedIn] = useState(!!token);
   const [hasProfile, setHasProfile] = useState(false);
   const [currentTab, setCurrentTab] = useState('login');
   const [hasInternship, setHasInternship] = useState(false);
+  const [profile, setProfile] = useState<any | null>(null);
+  const [internships, setInternships] = useState<any[]>([]);
 
-  // Mock internship data
-  const mockInternship = {
-    id: 1,
-    company: 'Tech Solutions India Pvt Ltd',
-    position: 'Software Development Intern',
-    duration: '6 months',
-    stipend: '₹15,000/month',
-    location: 'Mumbai, Maharashtra',
-    startDate: '2024-07-01',
-    status: 'allocated'
+  useEffect(() => {
+    if (!token) return;
+    fetch('/api/profile', {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        if (data) {
+          setProfile(data);
+          setHasProfile(true);
+          setHasInternship(!!data.internship);
+        } else {
+          setProfile(null);
+          setHasProfile(false);
+          setHasInternship(false);
+        }
+      })
+      .catch(() => {});
+
+    fetch('/api/internships', {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(res => (res.ok ? res.json() : []))
+      .then(data => setInternships(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, [token]);
+
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const res = await fetch('/api/auth/student/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.fromEntries(formData)),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      localStorage.setItem('studentToken', data.token);
+      setToken(data.token);
+      setIsLoggedIn(true);
+    }
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // "API_CALL: Authentication endpoint - POST /api/auth/student/login"
-    setIsLoggedIn(true);
-    // Check if user has profile from API response
-    setHasProfile(false); // Initially false to show profile creation
+    const formData = new FormData(e.currentTarget);
+    const res = await fetch('/api/auth/student/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.fromEntries(formData)),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      localStorage.setItem('studentToken', data.token);
+      setToken(data.token);
+      setIsLoggedIn(true);
+    }
   };
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleProfileCreation = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // "API_CALL: Registration endpoint - POST /api/auth/student/register"
-    setIsLoggedIn(true);
-    setHasProfile(false);
-  };
-
-  const handleProfileCreation = (e: React.FormEvent) => {
-    e.preventDefault();
-    // "API_CALL: Profile creation endpoint - POST /api/student/profile"
+    if (!token) return;
+    const formData = new FormData(e.currentTarget);
+    await fetch('/api/student/profile', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify(Object.fromEntries(formData)),
+    });
     setHasProfile(true);
+    fetch('/api/profile', { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        if (data) {
+          setProfile(data);
+          setHasInternship(!!data.internship);
+        }
+      })
+      .catch(() => {});
   };
 
   const handleResumeUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -340,56 +393,29 @@ export function StudentPortal({ onNavigate }: StudentPortalProps) {
                 <CardHeader>
                   <CardTitle>Available Internships</CardTitle>
                   <p className="text-gray-600">Browse and explore ongoing internship opportunities</p>
-                </CardHeader>
-                <CardContent>
-                  {/* Mock internship listings */}
-                  <div className="space-y-4">
-                    <div className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-semibold">Software Development Intern</h3>
-                        <Badge variant="secondary">Open</Badge>
-                      </div>
-                      <p className="text-gray-600 mb-2">Tech Solutions India Pvt Ltd</p>
-                      <p className="text-sm text-gray-500 mb-3">Duration: 6 months | Stipend: ₹15,000/month</p>
-                      <div className="flex gap-2 mb-3">
-                        <Badge variant="outline">React</Badge>
-                        <Badge variant="outline">Node.js</Badge>
-                        <Badge variant="outline">MongoDB</Badge>
-                      </div>
-                      <Button size="sm">View Details</Button>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {internships.map((intern) => (
+                        <div key={intern.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                          <div className="flex justify-between items-start mb-2">
+                            <h3 className="font-semibold">{intern.title || intern.position}</h3>
+                            <Badge variant="secondary">{intern.status || 'Open'}</Badge>
+                          </div>
+                          <p className="text-gray-600 mb-2">{intern.company}</p>
+                          <p className="text-sm text-gray-500 mb-3">
+                            Duration: {intern.duration} | Stipend: {intern.stipend}
+                          </p>
+                          <div className="flex gap-2 mb-3">
+                            {intern.skills?.map((skill: string) => (
+                              <Badge key={skill} variant="outline">{skill}</Badge>
+                            ))}
+                          </div>
+                          <Button size="sm">View Details</Button>
+                        </div>
+                      ))}
                     </div>
-
-                    <div className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-semibold">Data Science Intern</h3>
-                        <Badge variant="secondary">Open</Badge>
-                      </div>
-                      <p className="text-gray-600 mb-2">Analytics Corp India</p>
-                      <p className="text-sm text-gray-500 mb-3">Duration: 4 months | Stipend: ₹12,000/month</p>
-                      <div className="flex gap-2 mb-3">
-                        <Badge variant="outline">Python</Badge>
-                        <Badge variant="outline">Machine Learning</Badge>
-                        <Badge variant="outline">SQL</Badge>
-                      </div>
-                      <Button size="sm">View Details</Button>
-                    </div>
-
-                    <div className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-semibold">Digital Marketing Intern</h3>
-                        <Badge variant="secondary">Open</Badge>
-                      </div>
-                      <p className="text-gray-600 mb-2">Creative Marketing Solutions</p>
-                      <p className="text-sm text-gray-500 mb-3">Duration: 3 months | Stipend: ₹10,000/month</p>
-                      <div className="flex gap-2 mb-3">
-                        <Badge variant="outline">SEO</Badge>
-                        <Badge variant="outline">Social Media</Badge>
-                        <Badge variant="outline">Content Writing</Badge>
-                      </div>
-                      <Button size="sm">View Details</Button>
-                    </div>
-                  </div>
-                </CardContent>
+                  </CardContent>
               </Card>
             </div>
           </TabsContent>
@@ -409,8 +435,19 @@ export function StudentPortal({ onNavigate }: StudentPortalProps) {
                     <p className="text-gray-600 mb-4">
                       You haven't been allocated an internship yet. Our smart allocation system will match you with suitable opportunities.
                     </p>
-                    <Button 
-                      onClick={() => setHasInternship(true)} 
+                    <Button
+                      onClick={() => {
+                        if (token) {
+                          fetch('/api/profile', { headers: { Authorization: `Bearer ${token}` } })
+                            .then(res => (res.ok ? res.json() : null))
+                            .then(data => {
+                              if (data?.internship) {
+                                setProfile(data);
+                                setHasInternship(true);
+                              }
+                            });
+                        }
+                      }}
                       variant="outline"
                     >
                       Refresh Status
@@ -425,14 +462,14 @@ export function StudentPortal({ onNavigate }: StudentPortalProps) {
                       </div>
                       <div className="grid md:grid-cols-2 gap-4">
                         <div>
-                          <p><strong>Company:</strong> {mockInternship.company}</p>
-                          <p><strong>Position:</strong> {mockInternship.position}</p>
-                          <p><strong>Duration:</strong> {mockInternship.duration}</p>
+                          <p><strong>Company:</strong> {profile?.internship?.company}</p>
+                          <p><strong>Position:</strong> {profile?.internship?.position}</p>
+                          <p><strong>Duration:</strong> {profile?.internship?.duration}</p>
                         </div>
                         <div>
-                          <p><strong>Stipend:</strong> {mockInternship.stipend}</p>
-                          <p><strong>Location:</strong> {mockInternship.location}</p>
-                          <p><strong>Start Date:</strong> {mockInternship.startDate}</p>
+                          <p><strong>Stipend:</strong> {profile?.internship?.stipend}</p>
+                          <p><strong>Location:</strong> {profile?.internship?.location}</p>
+                          <p><strong>Start Date:</strong> {profile?.internship?.startDate}</p>
                         </div>
                       </div>
                       <div className="flex gap-4 mt-6">
