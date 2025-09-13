@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
@@ -17,6 +17,16 @@ export function StudentPortal({ onNavigate }: StudentPortalProps) {
   const [hasProfile, setHasProfile] = useState(false);
   const [currentTab, setCurrentTab] = useState('login');
   const [hasInternship, setHasInternship] = useState(false);
+
+  const studentId = 1;
+  const [internships, setInternships] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch(`http://localhost:4000/api/internships?studentId=${studentId}`)
+      .then(res => res.json())
+      .then(setInternships)
+      .catch(() => setInternships([]));
+  }, []);
 
   // Mock internship data
   const mockInternship = {
@@ -342,52 +352,26 @@ export function StudentPortal({ onNavigate }: StudentPortalProps) {
                   <p className="text-gray-600">Browse and explore ongoing internship opportunities</p>
                 </CardHeader>
                 <CardContent>
-                  {/* Mock internship listings */}
                   <div className="space-y-4">
-                    <div className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-semibold">Software Development Intern</h3>
-                        <Badge variant="secondary">Open</Badge>
+                    {internships.map((int) => (
+                      <div key={int.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                        <div className="flex justify-between items-start mb-2">
+                          <h3 className="font-semibold">{int.title}</h3>
+                          <Badge variant="secondary">Open</Badge>
+                        </div>
+                        <p className="text-gray-600 mb-2">{int.company}</p>
+                        <p className="text-sm text-gray-500 mb-3">Duration: {int.duration} | Stipend: {int.stipend}</p>
+                        <div className="flex gap-2 mb-3">
+                          {int.skills?.map((s: string) => (
+                            <Badge key={s} variant="outline">{s}</Badge>
+                          ))}
+                        </div>
+                        <Button size="sm">View Details</Button>
                       </div>
-                      <p className="text-gray-600 mb-2">Tech Solutions India Pvt Ltd</p>
-                      <p className="text-sm text-gray-500 mb-3">Duration: 6 months | Stipend: ₹15,000/month</p>
-                      <div className="flex gap-2 mb-3">
-                        <Badge variant="outline">React</Badge>
-                        <Badge variant="outline">Node.js</Badge>
-                        <Badge variant="outline">MongoDB</Badge>
-                      </div>
-                      <Button size="sm">View Details</Button>
-                    </div>
-
-                    <div className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-semibold">Data Science Intern</h3>
-                        <Badge variant="secondary">Open</Badge>
-                      </div>
-                      <p className="text-gray-600 mb-2">Analytics Corp India</p>
-                      <p className="text-sm text-gray-500 mb-3">Duration: 4 months | Stipend: ₹12,000/month</p>
-                      <div className="flex gap-2 mb-3">
-                        <Badge variant="outline">Python</Badge>
-                        <Badge variant="outline">Machine Learning</Badge>
-                        <Badge variant="outline">SQL</Badge>
-                      </div>
-                      <Button size="sm">View Details</Button>
-                    </div>
-
-                    <div className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-semibold">Digital Marketing Intern</h3>
-                        <Badge variant="secondary">Open</Badge>
-                      </div>
-                      <p className="text-gray-600 mb-2">Creative Marketing Solutions</p>
-                      <p className="text-sm text-gray-500 mb-3">Duration: 3 months | Stipend: ₹10,000/month</p>
-                      <div className="flex gap-2 mb-3">
-                        <Badge variant="outline">SEO</Badge>
-                        <Badge variant="outline">Social Media</Badge>
-                        <Badge variant="outline">Content Writing</Badge>
-                      </div>
-                      <Button size="sm">View Details</Button>
-                    </div>
+                    ))}
+                    {internships.length === 0 && (
+                      <p className="text-gray-600">No internships allocated.</p>
+                    )}
                   </div>
                 </CardContent>
               </Card>
