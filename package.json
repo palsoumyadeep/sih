@@ -45,7 +45,11 @@
           "recharts": "^2.15.2",
           "sonner": "^2.0.3",
           "tailwind-merge": "*",
-          "vaul": "^1.1.2"
+          "vaul": "^1.1.2",
+          "bcryptjs": "^2.4.3",
+          "cookie-parser": "^1.4.6",
+          "express": "^4.19.2",
+          "jsonwebtoken": "^9.0.2"
       },
       "devDependencies": {
           "@types/node": "^20.10.0",
