@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAuth } from '../auth/AuthProvider';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
@@ -14,20 +15,26 @@ interface AdminPortalProps {
 }
 
 export function AdminPortal({ onNavigate }: AdminPortalProps) {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const { role, login, authFetch } = useAuth();
+  const isLoggedIn = role === 'admin';
   const [isAllocating, setIsAllocating] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // "API_CALL: Admin authentication endpoint - POST /api/auth/admin/login"
-    setIsLoggedIn(true);
+    const res = await fetch('/api/auth/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'admin', password: 'admin123' })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      login(data.token);
+    }
   };
 
-  const handleSmartAllocation = () => {
+  const handleSmartAllocation = async () => {
     setIsAllocating(true);
-    // "API_CALL: Smart allocation endpoint - POST /api/admin/smart-allocation"
-    
-    // Simulate allocation process
+    await authFetch('/api/admin/smart-allocation', { method: 'POST' });
     setTimeout(() => {
       setIsAllocating(false);
       alert('Smart allocation completed successfully! 45 students have been allocated internships.');

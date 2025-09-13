@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAuth } from '../auth/AuthProvider';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
@@ -14,24 +15,30 @@ interface CompanyPortalProps {
 }
 
 export function CompanyPortal({ onNavigate }: CompanyPortalProps) {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const { role, login, authFetch } = useAuth();
+  const isLoggedIn = role === 'company';
   const [currentTab, setCurrentTab] = useState('login');
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // "API_CALL: Company authentication endpoint - POST /api/auth/company/login"
-    setIsLoggedIn(true);
+    const res = await fetch('/api/auth/company/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'company', password: 'company123' })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      login(data.token);
+    }
   };
 
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
-    // "API_CALL: Company registration endpoint - POST /api/auth/company/register"
-    setIsLoggedIn(true);
   };
 
-  const handleCreateInternship = (e: React.FormEvent) => {
+  const handleCreateInternship = async (e: React.FormEvent) => {
     e.preventDefault();
-    // "API_CALL: Create internship endpoint - POST /api/company/internships"
+    await authFetch('/api/company/internships', { method: 'POST' });
     alert('Internship posted successfully!');
   };
 
