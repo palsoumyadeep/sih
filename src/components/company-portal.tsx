@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
@@ -17,22 +17,121 @@ export function CompanyPortal({ onNavigate }: CompanyPortalProps) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentTab, setCurrentTab] = useState('login');
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    // "API_CALL: Company authentication endpoint - POST /api/auth/company/login"
-    setIsLoggedIn(true);
+  const [loginError, setLoginError] = useState('');
+  const [registerError, setRegisterError] = useState('');
+  const [createError, setCreateError] = useState('');
+  const [internships, setInternships] = useState<any[]>([]);
+  const [department, setDepartment] = useState('');
+  const [workMode, setWorkMode] = useState('');
+
+  const fetchInternships = async () => {
+    try {
+      const res = await fetch('/api/internships');
+      if (res.ok) {
+        const data = await res.json();
+        setInternships(data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const handleRegister = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (isLoggedIn) {
+      fetchInternships();
+    }
+  }, [isLoggedIn]);
+
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // "API_CALL: Company registration endpoint - POST /api/auth/company/register"
-    setIsLoggedIn(true);
+    const formData = new FormData(e.currentTarget);
+    const body = {
+      email: formData.get('email'),
+      password: formData.get('password'),
+    };
+
+    try {
+      const res = await fetch('/api/companies/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        setLoginError(errorData.message || 'Login failed');
+        return;
+      }
+      setLoginError('');
+      setIsLoggedIn(true);
+    } catch (err) {
+      setLoginError('Network error');
+    }
   };
 
-  const handleCreateInternship = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // "API_CALL: Create internship endpoint - POST /api/company/internships"
-    alert('Internship posted successfully!');
+    const formData = new FormData(e.currentTarget);
+    const body = {
+      companyName: formData.get('companyName'),
+      email: formData.get('email'),
+      phone: formData.get('phone'),
+      website: formData.get('website'),
+      password: formData.get('password'),
+    };
+
+    try {
+      const res = await fetch('/api/companies/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        setRegisterError(errorData.message || 'Registration failed');
+        return;
+      }
+      setRegisterError('');
+      setIsLoggedIn(true);
+    } catch (err) {
+      setRegisterError('Network error');
+    }
+  };
+
+  const handleCreateInternship = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const body = {
+      position: formData.get('position'),
+      department,
+      description: formData.get('description'),
+      duration: Number(formData.get('duration')),
+      stipend: Number(formData.get('stipend')),
+      slots: Number(formData.get('slots')),
+      skills: formData.get('skills'),
+      location: formData.get('location'),
+      workMode,
+      requirements: formData.get('requirements'),
+    };
+
+    try {
+      const res = await fetch('/api/internships', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        setCreateError(errorData.message || 'Failed to create internship');
+        return;
+      }
+      setCreateError('');
+      e.currentTarget.reset();
+      setDepartment('');
+      setWorkMode('');
+      await fetchInternships();
+    } catch (err) {
+      setCreateError('Network error');
+    }
   };
 
   if (!isLoggedIn) {
@@ -114,12 +213,13 @@ export function CompanyPortal({ onNavigate }: CompanyPortalProps) {
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div>
                     <Label htmlFor="email">Company Email</Label>
-                    <Input id="email" type="email" required />
+                    <Input id="email" name="email" type="email" required />
                   </div>
                   <div>
                     <Label htmlFor="password">Password</Label>
-                    <Input id="password" type="password" required />
+                    <Input id="password" name="password" type="password" required />
                   </div>
+                  {loginError && <p className="text-sm text-red-500">{loginError}</p>}
                   <Button type="submit" className="w-full">
                     Login
                   </Button>
@@ -130,24 +230,25 @@ export function CompanyPortal({ onNavigate }: CompanyPortalProps) {
                 <form onSubmit={handleRegister} className="space-y-4">
                   <div>
                     <Label htmlFor="companyName">Company Name</Label>
-                    <Input id="companyName" required />
+                    <Input id="companyName" name="companyName" required />
                   </div>
                   <div>
                     <Label htmlFor="email">Official Email</Label>
-                    <Input id="email" type="email" required />
+                    <Input id="email" name="email" type="email" required />
                   </div>
                   <div>
                     <Label htmlFor="phone">Contact Number</Label>
-                    <Input id="phone" type="tel" required />
+                    <Input id="phone" name="phone" type="tel" required />
                   </div>
                   <div>
                     <Label htmlFor="website">Company Website</Label>
-                    <Input id="website" type="url" />
+                    <Input id="website" name="website" type="url" />
                   </div>
                   <div>
                     <Label htmlFor="password">Password</Label>
-                    <Input id="password" type="password" required />
+                    <Input id="password" name="password" type="password" required />
                   </div>
+                  {registerError && <p className="text-sm text-red-500">{registerError}</p>}
                   <Button type="submit" className="w-full">
                     Register Company
                   </Button>
@@ -263,73 +364,49 @@ export function CompanyPortal({ onNavigate }: CompanyPortalProps) {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="border rounded-lg p-4">
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="font-semibold">Software Development Intern</h3>
-                      <Badge className="bg-green-100 text-green-800">Active</Badge>
-                    </div>
-                    <p className="text-gray-600 mb-2">Full-stack development role</p>
-                    <p className="text-sm text-gray-500 mb-3">Duration: 6 months | Stipend: ₹15,000/month</p>
-                    <div className="flex justify-between items-center">
-                      <p className="text-sm text-gray-600">Applications: 25 | Slots: 2</p>
-                      <div className="space-x-2">
-                        <Button size="sm" variant="outline">View Applications</Button>
-                        <Button size="sm">Edit</Button>
+                  {internships.length === 0 && (
+                    <p className="text-gray-600">No internships posted yet.</p>
+                  )}
+                  {internships.map((internship) => (
+                    <div key={internship.id} className="border rounded-lg p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="font-semibold">{internship.position}</h3>
+                        <Badge className="bg-green-100 text-green-800">
+                          {internship.status || 'Active'}
+                        </Badge>
+                      </div>
+                      <p className="text-gray-600 mb-2">{internship.description}</p>
+                      <p className="text-sm text-gray-500 mb-3">
+                        Duration: {internship.duration} months | Stipend: ₹{internship.stipend}/month
+                      </p>
+                      <div className="flex justify-between items-center">
+                        <p className="text-sm text-gray-600">
+                          Applications: {internship.applications || 0} | Slots: {internship.slots}
+                        </p>
                       </div>
                     </div>
-                  </div>
-
-                  <div className="border rounded-lg p-4">
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="font-semibold">Data Science Intern</h3>
-                      <Badge className="bg-green-100 text-green-800">Active</Badge>
-                    </div>
-                    <p className="text-gray-600 mb-2">Machine learning and analytics</p>
-                    <p className="text-sm text-gray-500 mb-3">Duration: 4 months | Stipend: ₹12,000/month</p>
-                    <div className="flex justify-between items-center">
-                      <p className="text-sm text-gray-600">Applications: 18 | Slots: 1</p>
-                      <div className="space-x-2">
-                        <Button size="sm" variant="outline">View Applications</Button>
-                        <Button size="sm">Edit</Button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="border rounded-lg p-4">
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="font-semibold">Digital Marketing Intern</h3>
-                      <Badge variant="secondary">Closed</Badge>
-                    </div>
-                    <p className="text-gray-600 mb-2">SEO and content marketing</p>
-                    <p className="text-sm text-gray-500 mb-3">Duration: 3 months | Stipend: ₹10,000/month</p>
-                    <div className="flex justify-between items-center">
-                      <p className="text-sm text-gray-600">Applications: 5 | Selected: 1</p>
-                      <div className="space-x-2">
-                        <Button size="sm" variant="outline">View Details</Button>
-                      </div>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
 
-          <TabsContent value="create" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Create New Internship</CardTitle>
-                <p className="text-gray-600">Post a new internship opportunity for students</p>
-              </CardHeader>
-              <CardContent>
+              <TabsContent value="create" className="mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Create New Internship</CardTitle>
+                    <p className="text-gray-600">Post a new internship opportunity for students</p>
+                  </CardHeader>
+                  <CardContent>
                 <form onSubmit={handleCreateInternship} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="position">Position Title</Label>
-                      <Input id="position" required />
+                      <Input id="position" name="position" required />
                     </div>
                     <div>
                       <Label htmlFor="department">Department</Label>
-                      <Select>
+                      <Select value={department} onValueChange={setDepartment}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select department" />
                         </SelectTrigger>
@@ -346,37 +423,37 @@ export function CompanyPortal({ onNavigate }: CompanyPortalProps) {
 
                   <div>
                     <Label htmlFor="description">Job Description</Label>
-                    <Textarea id="description" rows={4} required />
+                    <Textarea id="description" name="description" rows={4} required />
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <Label htmlFor="duration">Duration (months)</Label>
-                      <Input id="duration" type="number" min="1" max="12" required />
+                      <Input id="duration" name="duration" type="number" min="1" max="12" required />
                     </div>
                     <div>
                       <Label htmlFor="stipend">Monthly Stipend (₹)</Label>
-                      <Input id="stipend" type="number" min="0" required />
+                      <Input id="stipend" name="stipend" type="number" min="0" required />
                     </div>
                     <div>
                       <Label htmlFor="slots">Number of Slots</Label>
-                      <Input id="slots" type="number" min="1" required />
+                      <Input id="slots" name="slots" type="number" min="1" required />
                     </div>
                   </div>
 
                   <div>
                     <Label htmlFor="skills">Required Skills</Label>
-                    <Input id="skills" placeholder="e.g., Python, React, Communication Skills" required />
+                    <Input id="skills" name="skills" placeholder="e.g., Python, React, Communication Skills" required />
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="location">Location</Label>
-                      <Input id="location" required />
+                      <Input id="location" name="location" required />
                     </div>
                     <div>
                       <Label htmlFor="workMode">Work Mode</Label>
-                      <Select>
+                      <Select value={workMode} onValueChange={setWorkMode}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select work mode" />
                         </SelectTrigger>
@@ -391,16 +468,17 @@ export function CompanyPortal({ onNavigate }: CompanyPortalProps) {
 
                   <div>
                     <Label htmlFor="requirements">Minimum Requirements</Label>
-                    <Textarea id="requirements" rows={3} placeholder="Education, experience, etc." />
+                    <Textarea id="requirements" name="requirements" rows={3} placeholder="Education, experience, etc." />
                   </div>
 
+                  {createError && <p className="text-sm text-red-500">{createError}</p>}
                   <Button type="submit" className="w-full">
                     Post Internship
                   </Button>
                 </form>
-              </CardContent>
-            </Card>
-          </TabsContent>
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
           <TabsContent value="applications" className="mt-6">
             <Card>
