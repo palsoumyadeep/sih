@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
+import { api } from "../api";
 import { PageType } from '../App';
 
 interface AdminPortalProps {
@@ -17,24 +18,32 @@ export function AdminPortal({ onNavigate }: AdminPortalProps) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAllocating, setIsAllocating] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // "API_CALL: Admin authentication endpoint - POST /api/auth/admin/login"
-    setIsLoggedIn(true);
+    const data = Object.fromEntries(new FormData(e.currentTarget));
+    try {
+      await api.admin.login(data);
+      setIsLoggedIn(true);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const handleSmartAllocation = () => {
+  const handleSmartAllocation = async () => {
     setIsAllocating(true);
-    // "API_CALL: Smart allocation endpoint - POST /api/admin/smart-allocation"
-    
-    // Simulate allocation process
-    setTimeout(() => {
+    try {
+      await api.admin.smartAllocation();
+      setTimeout(() => {
+        setIsAllocating(false);
+        alert('Smart allocation completed successfully! 45 students have been allocated internships.');
+      }, 8000);
+    } catch (err) {
+      console.error(err);
       setIsAllocating(false);
-      alert('Smart allocation completed successfully! 45 students have been allocated internships.');
-    }, 8000);
+    }
   };
 
-  // Mock data for charts
+// Mock data for charts
   const studentsByCollege = [
     { name: 'IIT Delhi', students: 120 },
     { name: 'IIT Mumbai', students: 98 },
@@ -142,7 +151,7 @@ export function AdminPortal({ onNavigate }: AdminPortalProps) {
                   <div>
                     <Label htmlFor="email" className="text-gray-700">Admin Email</Label>
                     <Input 
-                      id="email" 
+                      id="email" name="email" 
                       type="email" 
                       required 
                       className="mt-1 border-gray-300 focus:border-orange-500 focus:ring-orange-500"
@@ -152,7 +161,7 @@ export function AdminPortal({ onNavigate }: AdminPortalProps) {
                   <div>
                     <Label htmlFor="password" className="text-gray-700">Admin Password</Label>
                     <Input 
-                      id="password" 
+                      id="password" name="password" 
                       type="password" 
                       required 
                       className="mt-1 border-gray-300 focus:border-orange-500 focus:ring-orange-500"
