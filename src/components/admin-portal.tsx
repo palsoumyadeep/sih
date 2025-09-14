@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
@@ -17,6 +17,7 @@ interface AdminPortalProps {
 export function AdminPortal({ onNavigate }: AdminPortalProps) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAllocating, setIsAllocating] = useState(false);
+  const [stats, setStats] = useState({ students: 0, companies: 0, internships: 0, allocated: 0 });
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -33,15 +34,23 @@ export function AdminPortal({ onNavigate }: AdminPortalProps) {
     setIsAllocating(true);
     try {
       await api.admin.smartAllocation();
+      const s = await api.admin.stats();
+      setStats(s);
       setTimeout(() => {
         setIsAllocating(false);
-        alert('Smart allocation completed successfully! 45 students have been allocated internships.');
+        alert('Smart allocation completed successfully!');
       }, 8000);
     } catch (err) {
       console.error(err);
       setIsAllocating(false);
     }
   };
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      api.admin.stats().then(setStats).catch(console.error);
+    }
+  }, [isLoggedIn]);
 
 // Mock data for charts
   const studentsByCollege = [
@@ -245,7 +254,7 @@ export function AdminPortal({ onNavigate }: AdminPortalProps) {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600">Total Students</p>
-                      <p className="text-3xl font-bold">1,247</p>
+                      <p className="text-3xl font-bold">{stats.students}</p>
                       <p className="text-sm text-green-600">↑ 12% from last month</p>
                     </div>
                     <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
@@ -260,7 +269,7 @@ export function AdminPortal({ onNavigate }: AdminPortalProps) {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600">Registered Companies</p>
-                      <p className="text-3xl font-bold">156</p>
+                      <p className="text-3xl font-bold">{stats.companies}</p>
                       <p className="text-sm text-green-600">↑ 8% from last month</p>
                     </div>
                     <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
@@ -275,7 +284,7 @@ export function AdminPortal({ onNavigate }: AdminPortalProps) {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600">Active Internships</p>
-                      <p className="text-3xl font-bold">89</p>
+                      <p className="text-3xl font-bold">{stats.internships}</p>
                       <p className="text-sm text-green-600">↑ 15% from last month</p>
                     </div>
                     <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
@@ -290,7 +299,7 @@ export function AdminPortal({ onNavigate }: AdminPortalProps) {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600">Successful Placements</p>
-                      <p className="text-3xl font-bold">423</p>
+                      <p className="text-3xl font-bold">{stats.allocated}</p>
                       <p className="text-sm text-green-600">↑ 22% from last month</p>
                     </div>
                     <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">

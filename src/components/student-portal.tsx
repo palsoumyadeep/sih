@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
@@ -18,26 +18,16 @@ export function StudentPortal({ onNavigate }: StudentPortalProps) {
   const [hasProfile, setHasProfile] = useState(false);
   const [currentTab, setCurrentTab] = useState('login');
   const [hasInternship, setHasInternship] = useState(false);
-
-  // Mock internship data
-  const mockInternship = {
-    id: 1,
-    company: 'Tech Solutions India Pvt Ltd',
-    position: 'Software Development Intern',
-    duration: '6 months',
-    stipend: '₹15,000/month',
-    location: 'Mumbai, Maharashtra',
-    startDate: '2024-07-01',
-    status: 'allocated'
-  };
+  const [internships, setInternships] = useState<any[]>([]);
+  const [myInternship, setMyInternship] = useState<any | null>(null);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const data = Object.fromEntries(new FormData(e.currentTarget));
     try {
-      await api.student.login(data);
+      const student = await api.student.login(data);
       setIsLoggedIn(true);
-      setHasProfile(false);
+      setHasProfile(!!student.college);
     } catch (err) {
       console.error(err);
     }
@@ -47,9 +37,9 @@ export function StudentPortal({ onNavigate }: StudentPortalProps) {
     e.preventDefault();
     const data = Object.fromEntries(new FormData(e.currentTarget));
     try {
-      await api.student.register(data);
+      const student = await api.student.register(data);
       setIsLoggedIn(true);
-      setHasProfile(false);
+      setHasProfile(!!student.college);
     } catch (err) {
       console.error(err);
     }
@@ -78,6 +68,22 @@ export function StudentPortal({ onNavigate }: StudentPortalProps) {
       }
     }
   };
+
+  useEffect(() => {
+    if (isLoggedIn && hasProfile) {
+      (async () => {
+        try {
+          const list = await api.internships.list();
+          setInternships(list);
+          const mine = await api.student.myInternship();
+          setMyInternship(mine);
+          setHasInternship(!!mine);
+        } catch (err) {
+          console.error(err);
+        }
+      })();
+    }
+  }, [isLoggedIn, hasProfile]);
 
   if (!isLoggedIn) {
     return (
@@ -361,52 +367,26 @@ export function StudentPortal({ onNavigate }: StudentPortalProps) {
                   <p className="text-gray-600">Browse and explore ongoing internship opportunities</p>
                 </CardHeader>
                 <CardContent>
-                  {/* Mock internship listings */}
                   <div className="space-y-4">
-                    <div className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-semibold">Software Development Intern</h3>
-                        <Badge variant="secondary">Open</Badge>
+                    {internships.map((intern) => (
+                      <div key={intern.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                        <div className="flex justify-between items-start mb-2">
+                          <h3 className="font-semibold">{intern.title}</h3>
+                          <Badge variant="secondary">Open</Badge>
+                        </div>
+                        <p className="text-gray-600 mb-2">{intern.location || 'Location N/A'}</p>
+                        <p className="text-sm text-gray-500 mb-3">Duration: {intern.duration || 'N/A'} | Stipend: {intern.stipend || 'N/A'}</p>
+                        <div className="flex gap-2 mb-3">
+                          {intern.required_skills?.split(',').map((s: string) => (
+                            <Badge key={s} variant="outline">{s.trim()}</Badge>
+                          ))}
+                        </div>
+                        <Button size="sm">View Details</Button>
                       </div>
-                      <p className="text-gray-600 mb-2">Tech Solutions India Pvt Ltd</p>
-                      <p className="text-sm text-gray-500 mb-3">Duration: 6 months | Stipend: ₹15,000/month</p>
-                      <div className="flex gap-2 mb-3">
-                        <Badge variant="outline">React</Badge>
-                        <Badge variant="outline">Node.js</Badge>
-                        <Badge variant="outline">MongoDB</Badge>
-                      </div>
-                      <Button size="sm">View Details</Button>
-                    </div>
-
-                    <div className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-semibold">Data Science Intern</h3>
-                        <Badge variant="secondary">Open</Badge>
-                      </div>
-                      <p className="text-gray-600 mb-2">Analytics Corp India</p>
-                      <p className="text-sm text-gray-500 mb-3">Duration: 4 months | Stipend: ₹12,000/month</p>
-                      <div className="flex gap-2 mb-3">
-                        <Badge variant="outline">Python</Badge>
-                        <Badge variant="outline">Machine Learning</Badge>
-                        <Badge variant="outline">SQL</Badge>
-                      </div>
-                      <Button size="sm">View Details</Button>
-                    </div>
-
-                    <div className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-semibold">Digital Marketing Intern</h3>
-                        <Badge variant="secondary">Open</Badge>
-                      </div>
-                      <p className="text-gray-600 mb-2">Creative Marketing Solutions</p>
-                      <p className="text-sm text-gray-500 mb-3">Duration: 3 months | Stipend: ₹10,000/month</p>
-                      <div className="flex gap-2 mb-3">
-                        <Badge variant="outline">SEO</Badge>
-                        <Badge variant="outline">Social Media</Badge>
-                        <Badge variant="outline">Content Writing</Badge>
-                      </div>
-                      <Button size="sm">View Details</Button>
-                    </div>
+                    ))}
+                    {internships.length === 0 && (
+                      <p className="text-gray-500">No internships available.</p>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -419,7 +399,7 @@ export function StudentPortal({ onNavigate }: StudentPortalProps) {
                 <CardTitle>My Internship Status</CardTitle>
               </CardHeader>
               <CardContent>
-                {!hasInternship ? (
+                {!hasInternship || !myInternship ? (
                   <div className="text-center py-12">
                     <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                       📋
@@ -428,12 +408,6 @@ export function StudentPortal({ onNavigate }: StudentPortalProps) {
                     <p className="text-gray-600 mb-4">
                       You haven't been allocated an internship yet. Our smart allocation system will match you with suitable opportunities.
                     </p>
-                    <Button 
-                      onClick={() => setHasInternship(true)} 
-                      variant="outline"
-                    >
-                      Refresh Status
-                    </Button>
                   </div>
                 ) : (
                   <div className="space-y-6">
@@ -444,26 +418,15 @@ export function StudentPortal({ onNavigate }: StudentPortalProps) {
                       </div>
                       <div className="grid md:grid-cols-2 gap-4">
                         <div>
-                          <p><strong>Company:</strong> {mockInternship.company}</p>
-                          <p><strong>Position:</strong> {mockInternship.position}</p>
-                          <p><strong>Duration:</strong> {mockInternship.duration}</p>
+                          <p><strong>Title:</strong> {myInternship.title}</p>
+                          <p><strong>Duration:</strong> {myInternship.duration || 'N/A'}</p>
+                          <p><strong>Stipend:</strong> {myInternship.stipend || 'N/A'}</p>
                         </div>
                         <div>
-                          <p><strong>Stipend:</strong> {mockInternship.stipend}</p>
-                          <p><strong>Location:</strong> {mockInternship.location}</p>
-                          <p><strong>Start Date:</strong> {mockInternship.startDate}</p>
+                          <p><strong>Location:</strong> {myInternship.location || 'N/A'}</p>
+                          <p><strong>Skills:</strong> {myInternship.required_skills}</p>
                         </div>
                       </div>
-                      <div className="flex gap-4 mt-6">
-                        <Button>Accept Internship</Button>
-                        <Button variant="outline">View Details</Button>
-                        <Button variant="ghost">Contact Company</Button>
-                      </div>
-                    </div>
-                    
-                    <div className="border-t pt-6">
-                      <h4 className="font-semibold mb-4">Want to apply for other internships manually?</h4>
-                      <Button variant="outline">Browse All Internships</Button>
                     </div>
                   </div>
                 )}
