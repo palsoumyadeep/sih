@@ -1,13 +1,45 @@
 from pydantic import BaseModel
 
-class UserBase(BaseModel):
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
+
+
+class StudentCreate(BaseModel):
+    name: str
+    phone: str
+    email: str
+    password: str
+
+
+class StudentRead(BaseModel):
+    id: int
+    name: str
+    phone: str
     email: str
 
-class UserCreate(UserBase):
+    class Config:
+        orm_mode = True
+
+
+class CompanyCreate(BaseModel):
+    companyName: str
+    phone: str
+    email: str
+    website: str | None = None
     password: str
 
-class UserLogin(UserBase):
-    password: str
+
+class CompanyRead(BaseModel):
+    id: int
+    name: str
+    phone: str
+    email: str
+    website: str | None = None
+
+    class Config:
+        orm_mode = True
 
 class InternshipBase(BaseModel):
     title: str

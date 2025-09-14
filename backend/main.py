@@ -18,17 +18,23 @@ def get_db():
         db.close()
 
 # Authentication Endpoints
-@app.post("/api/auth/student/register", response_model=schemas.UserBase)
-def register_student(user: schemas.UserCreate, db: Session = Depends(get_db)):
+@app.post("/api/auth/student/register", response_model=schemas.StudentRead)
+def register_student(user: schemas.StudentCreate, db: Session = Depends(get_db)):
     if db.query(models.Student).filter(models.Student.email == user.email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
-    db_user = models.Student(email=user.email, password=user.password)
+    db_user = models.Student(
+        name=user.name,
+        phone=user.phone,
+        email=user.email,
+        password=user.password,
+    )
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
     return db_user
 
-@app.post("/api/auth/student/login", response_model=schemas.UserBase)
+
+@app.post("/api/auth/student/login", response_model=schemas.StudentRead)
 def login_student(user: schemas.UserLogin, db: Session = Depends(get_db)):
     db_user = db.query(models.Student).filter_by(email=user.email, password=user.password).first()
     if not db_user:
@@ -45,17 +51,24 @@ def create_student_profile(profile: dict):
 @app.post("/api/student/resume")
 async def upload_student_resume(file: UploadFile = File(...)):
     return {"status": "resume uploaded"}
-@app.post("/api/auth/company/register", response_model=schemas.UserBase)
-def register_company(user: schemas.UserCreate, db: Session = Depends(get_db)):
+@app.post("/api/auth/company/register", response_model=schemas.CompanyRead)
+def register_company(user: schemas.CompanyCreate, db: Session = Depends(get_db)):
     if db.query(models.Company).filter(models.Company.email == user.email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
-    db_user = models.Company(email=user.email, password=user.password)
+    db_user = models.Company(
+        name=user.companyName,
+        phone=user.phone,
+        email=user.email,
+        website=user.website,
+        password=user.password,
+    )
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
     return db_user
 
-@app.post("/api/auth/company/login", response_model=schemas.UserBase)
+
+@app.post("/api/auth/company/login", response_model=schemas.CompanyRead)
 def login_company(user: schemas.UserLogin, db: Session = Depends(get_db)):
     db_user = db.query(models.Company).filter_by(email=user.email, password=user.password).first()
     if not db_user:

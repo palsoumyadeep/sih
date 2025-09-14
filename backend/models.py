@@ -8,6 +8,8 @@ class Student(Base):
     __tablename__ = "students"
 
     id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    phone = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     password = Column(String, nullable=False)
 
@@ -16,7 +18,10 @@ class Company(Base):
     __tablename__ = "companies"
 
     id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    phone = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
+    website = Column(String, nullable=True)
     password = Column(String, nullable=False)
 
     internships = relationship("Internship", back_populates="company")
