@@ -7,6 +7,7 @@ import { Textarea } from './ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { api } from "../api";
 import { PageType } from '../App';
 
 interface CompanyPortalProps {
@@ -17,22 +18,37 @@ export function CompanyPortal({ onNavigate }: CompanyPortalProps) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentTab, setCurrentTab] = useState('login');
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // "API_CALL: Company authentication endpoint - POST /api/auth/company/login"
-    setIsLoggedIn(true);
+    const data = Object.fromEntries(new FormData(e.currentTarget));
+    try {
+      await api.company.login(data);
+      setIsLoggedIn(true);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // "API_CALL: Company registration endpoint - POST /api/auth/company/register"
-    setIsLoggedIn(true);
+    const data = Object.fromEntries(new FormData(e.currentTarget));
+    try {
+      await api.company.register(data);
+      setIsLoggedIn(true);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const handleCreateInternship = (e: React.FormEvent) => {
+  const handleCreateInternship = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // "API_CALL: Create internship endpoint - POST /api/company/internships"
-    alert('Internship posted successfully!');
+    const data = Object.fromEntries(new FormData(e.currentTarget));
+    try {
+      await api.company.createInternship(data);
+      alert('Internship posted successfully!');
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   if (!isLoggedIn) {
@@ -114,11 +130,11 @@ export function CompanyPortal({ onNavigate }: CompanyPortalProps) {
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div>
                     <Label htmlFor="email">Company Email</Label>
-                    <Input id="email" type="email" required />
+                    <Input id="email" name="email" type="email" required />
                   </div>
                   <div>
                     <Label htmlFor="password">Password</Label>
-                    <Input id="password" type="password" required />
+                    <Input id="password" name="password" type="password" required />
                   </div>
                   <Button type="submit" className="w-full">
                     Login
@@ -130,23 +146,23 @@ export function CompanyPortal({ onNavigate }: CompanyPortalProps) {
                 <form onSubmit={handleRegister} className="space-y-4">
                   <div>
                     <Label htmlFor="companyName">Company Name</Label>
-                    <Input id="companyName" required />
+                    <Input id="companyName" name="companyName" required />
                   </div>
                   <div>
                     <Label htmlFor="email">Official Email</Label>
-                    <Input id="email" type="email" required />
+                    <Input id="email" name="email" type="email" required />
                   </div>
                   <div>
                     <Label htmlFor="phone">Contact Number</Label>
-                    <Input id="phone" type="tel" required />
+                    <Input id="phone" name="phone" type="tel" required />
                   </div>
                   <div>
                     <Label htmlFor="website">Company Website</Label>
-                    <Input id="website" type="url" />
+                    <Input id="website" name="website" type="url" />
                   </div>
                   <div>
                     <Label htmlFor="password">Password</Label>
-                    <Input id="password" type="password" required />
+                    <Input id="password" name="password" type="password" required />
                   </div>
                   <Button type="submit" className="w-full">
                     Register Company
@@ -325,7 +341,7 @@ export function CompanyPortal({ onNavigate }: CompanyPortalProps) {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="position">Position Title</Label>
-                      <Input id="position" required />
+                      <Input id="position" name="position" required />
                     </div>
                     <div>
                       <Label htmlFor="department">Department</Label>
@@ -346,33 +362,33 @@ export function CompanyPortal({ onNavigate }: CompanyPortalProps) {
 
                   <div>
                     <Label htmlFor="description">Job Description</Label>
-                    <Textarea id="description" rows={4} required />
+                    <Textarea id="description" name="description" rows={4} required />
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <Label htmlFor="duration">Duration (months)</Label>
-                      <Input id="duration" type="number" min="1" max="12" required />
+                      <Input id="duration" name="duration" type="number" min="1" max="12" required />
                     </div>
                     <div>
                       <Label htmlFor="stipend">Monthly Stipend (₹)</Label>
-                      <Input id="stipend" type="number" min="0" required />
+                      <Input id="stipend" name="stipend" type="number" min="0" required />
                     </div>
                     <div>
                       <Label htmlFor="slots">Number of Slots</Label>
-                      <Input id="slots" type="number" min="1" required />
+                      <Input id="slots" name="slots" type="number" min="1" required />
                     </div>
                   </div>
 
                   <div>
                     <Label htmlFor="skills">Required Skills</Label>
-                    <Input id="skills" placeholder="e.g., Python, React, Communication Skills" required />
+                    <Input id="skills" name="skills" placeholder="e.g., Python, React, Communication Skills" required />
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="location">Location</Label>
-                      <Input id="location" required />
+                      <Input id="location" name="location" required />
                     </div>
                     <div>
                       <Label htmlFor="workMode">Work Mode</Label>
@@ -391,7 +407,7 @@ export function CompanyPortal({ onNavigate }: CompanyPortalProps) {
 
                   <div>
                     <Label htmlFor="requirements">Minimum Requirements</Label>
-                    <Textarea id="requirements" rows={3} placeholder="Education, experience, etc." />
+                    <Textarea id="requirements" name="requirements" rows={3} placeholder="Education, experience, etc." />
                   </div>
 
                   <Button type="submit" className="w-full">

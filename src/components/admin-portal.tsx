@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
+import { api } from "../api";
 import { PageType } from '../App';
 
 interface AdminPortalProps {
@@ -16,25 +17,42 @@ interface AdminPortalProps {
 export function AdminPortal({ onNavigate }: AdminPortalProps) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAllocating, setIsAllocating] = useState(false);
+  const [stats, setStats] = useState({ students: 0, companies: 0, internships: 0, allocated: 0 });
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // "API_CALL: Admin authentication endpoint - POST /api/auth/admin/login"
-    setIsLoggedIn(true);
+    const data = Object.fromEntries(new FormData(e.currentTarget));
+    try {
+      await api.admin.login(data);
+      setIsLoggedIn(true);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const handleSmartAllocation = () => {
+  const handleSmartAllocation = async () => {
     setIsAllocating(true);
-    // "API_CALL: Smart allocation endpoint - POST /api/admin/smart-allocation"
-    
-    // Simulate allocation process
-    setTimeout(() => {
+    try {
+      await api.admin.smartAllocation();
+      const s = await api.admin.stats();
+      setStats(s);
+      setTimeout(() => {
+        setIsAllocating(false);
+        alert('Smart allocation completed successfully!');
+      }, 8000);
+    } catch (err) {
+      console.error(err);
       setIsAllocating(false);
-      alert('Smart allocation completed successfully! 45 students have been allocated internships.');
-    }, 8000);
+    }
   };
 
-  // Mock data for charts
+  useEffect(() => {
+    if (isLoggedIn) {
+      api.admin.stats().then(setStats).catch(console.error);
+    }
+  }, [isLoggedIn]);
+
+// Mock data for charts
   const studentsByCollege = [
     { name: 'IIT Delhi', students: 120 },
     { name: 'IIT Mumbai', students: 98 },
@@ -142,7 +160,7 @@ export function AdminPortal({ onNavigate }: AdminPortalProps) {
                   <div>
                     <Label htmlFor="email" className="text-gray-700">Admin Email</Label>
                     <Input 
-                      id="email" 
+                      id="email" name="email" 
                       type="email" 
                       required 
                       className="mt-1 border-gray-300 focus:border-orange-500 focus:ring-orange-500"
@@ -152,7 +170,7 @@ export function AdminPortal({ onNavigate }: AdminPortalProps) {
                   <div>
                     <Label htmlFor="password" className="text-gray-700">Admin Password</Label>
                     <Input 
-                      id="password" 
+                      id="password" name="password" 
                       type="password" 
                       required 
                       className="mt-1 border-gray-300 focus:border-orange-500 focus:ring-orange-500"
@@ -236,7 +254,7 @@ export function AdminPortal({ onNavigate }: AdminPortalProps) {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600">Total Students</p>
-                      <p className="text-3xl font-bold">1,247</p>
+                      <p className="text-3xl font-bold">{stats.students}</p>
                       <p className="text-sm text-green-600">↑ 12% from last month</p>
                     </div>
                     <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
@@ -251,7 +269,7 @@ export function AdminPortal({ onNavigate }: AdminPortalProps) {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600">Registered Companies</p>
-                      <p className="text-3xl font-bold">156</p>
+                      <p className="text-3xl font-bold">{stats.companies}</p>
                       <p className="text-sm text-green-600">↑ 8% from last month</p>
                     </div>
                     <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
@@ -266,7 +284,7 @@ export function AdminPortal({ onNavigate }: AdminPortalProps) {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600">Active Internships</p>
-                      <p className="text-3xl font-bold">89</p>
+                      <p className="text-3xl font-bold">{stats.internships}</p>
                       <p className="text-sm text-green-600">↑ 15% from last month</p>
                     </div>
                     <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
@@ -281,7 +299,7 @@ export function AdminPortal({ onNavigate }: AdminPortalProps) {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600">Successful Placements</p>
-                      <p className="text-3xl font-bold">423</p>
+                      <p className="text-3xl font-bold">{stats.allocated}</p>
                       <p className="text-sm text-green-600">↑ 22% from last month</p>
                     </div>
                     <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">

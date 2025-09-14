@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
@@ -6,6 +6,7 @@ import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
+import { api } from "../api";
 import { PageType } from '../App';
 
 interface StudentPortalProps {
@@ -17,48 +18,72 @@ export function StudentPortal({ onNavigate }: StudentPortalProps) {
   const [hasProfile, setHasProfile] = useState(false);
   const [currentTab, setCurrentTab] = useState('login');
   const [hasInternship, setHasInternship] = useState(false);
+  const [internships, setInternships] = useState<any[]>([]);
+  const [myInternship, setMyInternship] = useState<any | null>(null);
 
-  // Mock internship data
-  const mockInternship = {
-    id: 1,
-    company: 'Tech Solutions India Pvt Ltd',
-    position: 'Software Development Intern',
-    duration: '6 months',
-    stipend: '₹15,000/month',
-    location: 'Mumbai, Maharashtra',
-    startDate: '2024-07-01',
-    status: 'allocated'
-  };
-
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // "API_CALL: Authentication endpoint - POST /api/auth/student/login"
-    setIsLoggedIn(true);
-    // Check if user has profile from API response
-    setHasProfile(false); // Initially false to show profile creation
-  };
-
-  const handleRegister = (e: React.FormEvent) => {
-    e.preventDefault();
-    // "API_CALL: Registration endpoint - POST /api/auth/student/register"
-    setIsLoggedIn(true);
-    setHasProfile(false);
-  };
-
-  const handleProfileCreation = (e: React.FormEvent) => {
-    e.preventDefault();
-    // "API_CALL: Profile creation endpoint - POST /api/student/profile"
-    setHasProfile(true);
-  };
-
-  const handleResumeUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // "API_CALL: Resume upload endpoint - POST /api/student/resume"
-      console.log('Uploading resume:', file.name);
-      // Auto-fill profile from resume data
+    const data = Object.fromEntries(new FormData(e.currentTarget));
+    try {
+      const student = await api.student.login(data);
+      setIsLoggedIn(true);
+      setHasProfile(!!student.college);
+    } catch (err) {
+      console.error(err);
     }
   };
+
+  const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(e.currentTarget));
+    try {
+      const student = await api.student.register(data);
+      setIsLoggedIn(true);
+      setHasProfile(!!student.college);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleProfileCreation = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(e.currentTarget));
+    try {
+      await api.student.profile(data);
+      setHasProfile(true);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleResumeUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const formData = new FormData();
+      formData.append('file', file);
+      try {
+        await api.student.uploadResume(formData);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (isLoggedIn && hasProfile) {
+      (async () => {
+        try {
+          const list = await api.internships.list();
+          setInternships(list);
+          const mine = await api.student.myInternship();
+          setMyInternship(mine);
+          setHasInternship(!!mine);
+        } catch (err) {
+          console.error(err);
+        }
+      })();
+    }
+  }, [isLoggedIn, hasProfile]);
 
   if (!isLoggedIn) {
     return (
@@ -119,7 +144,7 @@ export function StudentPortal({ onNavigate }: StudentPortalProps) {
                     <div>
                       <Label htmlFor="email" className="text-gray-700">Email Address</Label>
                       <Input 
-                        id="email" 
+                        id="email" name="email" 
                         type="email" 
                         required 
                         className="mt-1 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
@@ -129,7 +154,7 @@ export function StudentPortal({ onNavigate }: StudentPortalProps) {
                     <div>
                       <Label htmlFor="password" className="text-gray-700">Password</Label>
                       <Input 
-                        id="password" 
+                        id="password" name="password" 
                         type="password" 
                         required 
                         className="mt-1 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
@@ -152,7 +177,7 @@ export function StudentPortal({ onNavigate }: StudentPortalProps) {
                     <div>
                       <Label htmlFor="name" className="text-gray-700">Full Name</Label>
                       <Input 
-                        id="name" 
+                        id="name" name="name" 
                         required 
                         className="mt-1 border-gray-300 focus:border-purple-500 focus:ring-purple-500"
                         placeholder="John Doe"
@@ -161,7 +186,7 @@ export function StudentPortal({ onNavigate }: StudentPortalProps) {
                     <div>
                       <Label htmlFor="email" className="text-gray-700">Email Address</Label>
                       <Input 
-                        id="email" 
+                        id="email" name="email" 
                         type="email" 
                         required 
                         className="mt-1 border-gray-300 focus:border-purple-500 focus:ring-purple-500"
@@ -171,7 +196,7 @@ export function StudentPortal({ onNavigate }: StudentPortalProps) {
                     <div>
                       <Label htmlFor="phone" className="text-gray-700">Phone Number</Label>
                       <Input 
-                        id="phone" 
+                        id="phone" name="phone" 
                         type="tel" 
                         required 
                         className="mt-1 border-gray-300 focus:border-purple-500 focus:ring-purple-500"
@@ -181,7 +206,7 @@ export function StudentPortal({ onNavigate }: StudentPortalProps) {
                     <div>
                       <Label htmlFor="password" className="text-gray-700">Password</Label>
                       <Input 
-                        id="password" 
+                        id="password" name="password" 
                         type="password" 
                         required 
                         className="mt-1 border-gray-300 focus:border-purple-500 focus:ring-purple-500"
@@ -268,38 +293,38 @@ export function StudentPortal({ onNavigate }: StudentPortalProps) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="college">College/University</Label>
-                    <Input id="college" required />
+                    <Input id="college" name="college" required />
                   </div>
                   <div>
                     <Label htmlFor="course">Course/Degree</Label>
-                    <Input id="course" required />
+                    <Input id="course" name="course" required />
                   </div>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="year">Year of Study</Label>
-                    <Input id="year" required />
+                    <Input id="year" name="year" required />
                   </div>
                   <div>
                     <Label htmlFor="cgpa">CGPA/Percentage</Label>
-                    <Input id="cgpa" required />
+                    <Input id="cgpa" name="cgpa" required />
                   </div>
                 </div>
                 
                 <div>
                   <Label htmlFor="skills">Skills (comma separated)</Label>
-                  <Input id="skills" placeholder="e.g., Python, React, Java, Data Analysis" required />
+                  <Input id="skills" name="skills" placeholder="e.g., Python, React, Java, Data Analysis" required />
                 </div>
                 
                 <div>
                   <Label htmlFor="interests">Areas of Interest</Label>
-                  <Textarea id="interests" placeholder="Describe your areas of interest..." />
+                  <Textarea id="interests" name="interests" placeholder="Describe your areas of interest..." />
                 </div>
                 
                 <div>
                   <Label htmlFor="experience">Previous Experience (if any)</Label>
-                  <Textarea id="experience" placeholder="Describe any previous internships, projects, or work experience..." />
+                  <Textarea id="experience" name="experience" placeholder="Describe any previous internships, projects, or work experience..." />
                 </div>
                 
                 <Button type="submit" className="w-full">
@@ -342,52 +367,26 @@ export function StudentPortal({ onNavigate }: StudentPortalProps) {
                   <p className="text-gray-600">Browse and explore ongoing internship opportunities</p>
                 </CardHeader>
                 <CardContent>
-                  {/* Mock internship listings */}
                   <div className="space-y-4">
-                    <div className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-semibold">Software Development Intern</h3>
-                        <Badge variant="secondary">Open</Badge>
+                    {internships.map((intern) => (
+                      <div key={intern.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                        <div className="flex justify-between items-start mb-2">
+                          <h3 className="font-semibold">{intern.title}</h3>
+                          <Badge variant="secondary">Open</Badge>
+                        </div>
+                        <p className="text-gray-600 mb-2">{intern.location || 'Location N/A'}</p>
+                        <p className="text-sm text-gray-500 mb-3">Duration: {intern.duration || 'N/A'} | Stipend: {intern.stipend || 'N/A'}</p>
+                        <div className="flex gap-2 mb-3">
+                          {intern.required_skills?.split(',').map((s: string) => (
+                            <Badge key={s} variant="outline">{s.trim()}</Badge>
+                          ))}
+                        </div>
+                        <Button size="sm">View Details</Button>
                       </div>
-                      <p className="text-gray-600 mb-2">Tech Solutions India Pvt Ltd</p>
-                      <p className="text-sm text-gray-500 mb-3">Duration: 6 months | Stipend: ₹15,000/month</p>
-                      <div className="flex gap-2 mb-3">
-                        <Badge variant="outline">React</Badge>
-                        <Badge variant="outline">Node.js</Badge>
-                        <Badge variant="outline">MongoDB</Badge>
-                      </div>
-                      <Button size="sm">View Details</Button>
-                    </div>
-
-                    <div className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-semibold">Data Science Intern</h3>
-                        <Badge variant="secondary">Open</Badge>
-                      </div>
-                      <p className="text-gray-600 mb-2">Analytics Corp India</p>
-                      <p className="text-sm text-gray-500 mb-3">Duration: 4 months | Stipend: ₹12,000/month</p>
-                      <div className="flex gap-2 mb-3">
-                        <Badge variant="outline">Python</Badge>
-                        <Badge variant="outline">Machine Learning</Badge>
-                        <Badge variant="outline">SQL</Badge>
-                      </div>
-                      <Button size="sm">View Details</Button>
-                    </div>
-
-                    <div className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-semibold">Digital Marketing Intern</h3>
-                        <Badge variant="secondary">Open</Badge>
-                      </div>
-                      <p className="text-gray-600 mb-2">Creative Marketing Solutions</p>
-                      <p className="text-sm text-gray-500 mb-3">Duration: 3 months | Stipend: ₹10,000/month</p>
-                      <div className="flex gap-2 mb-3">
-                        <Badge variant="outline">SEO</Badge>
-                        <Badge variant="outline">Social Media</Badge>
-                        <Badge variant="outline">Content Writing</Badge>
-                      </div>
-                      <Button size="sm">View Details</Button>
-                    </div>
+                    ))}
+                    {internships.length === 0 && (
+                      <p className="text-gray-500">No internships available.</p>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -400,7 +399,7 @@ export function StudentPortal({ onNavigate }: StudentPortalProps) {
                 <CardTitle>My Internship Status</CardTitle>
               </CardHeader>
               <CardContent>
-                {!hasInternship ? (
+                {!hasInternship || !myInternship ? (
                   <div className="text-center py-12">
                     <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                       📋
@@ -409,12 +408,6 @@ export function StudentPortal({ onNavigate }: StudentPortalProps) {
                     <p className="text-gray-600 mb-4">
                       You haven't been allocated an internship yet. Our smart allocation system will match you with suitable opportunities.
                     </p>
-                    <Button 
-                      onClick={() => setHasInternship(true)} 
-                      variant="outline"
-                    >
-                      Refresh Status
-                    </Button>
                   </div>
                 ) : (
                   <div className="space-y-6">
@@ -425,26 +418,15 @@ export function StudentPortal({ onNavigate }: StudentPortalProps) {
                       </div>
                       <div className="grid md:grid-cols-2 gap-4">
                         <div>
-                          <p><strong>Company:</strong> {mockInternship.company}</p>
-                          <p><strong>Position:</strong> {mockInternship.position}</p>
-                          <p><strong>Duration:</strong> {mockInternship.duration}</p>
+                          <p><strong>Title:</strong> {myInternship.title}</p>
+                          <p><strong>Duration:</strong> {myInternship.duration || 'N/A'}</p>
+                          <p><strong>Stipend:</strong> {myInternship.stipend || 'N/A'}</p>
                         </div>
                         <div>
-                          <p><strong>Stipend:</strong> {mockInternship.stipend}</p>
-                          <p><strong>Location:</strong> {mockInternship.location}</p>
-                          <p><strong>Start Date:</strong> {mockInternship.startDate}</p>
+                          <p><strong>Location:</strong> {myInternship.location || 'N/A'}</p>
+                          <p><strong>Skills:</strong> {myInternship.required_skills}</p>
                         </div>
                       </div>
-                      <div className="flex gap-4 mt-6">
-                        <Button>Accept Internship</Button>
-                        <Button variant="outline">View Details</Button>
-                        <Button variant="ghost">Contact Company</Button>
-                      </div>
-                    </div>
-                    
-                    <div className="border-t pt-6">
-                      <h4 className="font-semibold mb-4">Want to apply for other internships manually?</h4>
-                      <Button variant="outline">Browse All Internships</Button>
                     </div>
                   </div>
                 )}
